@@ -146,7 +146,7 @@ def train_cls_model(SETUP, model, name, train_dataset, valid_dataset, optimizer,
 
   best_acc = 0.0
 
-  bnum = math.ceil(len(train_dataset) / accumulation_steps / setup['batch_size'])
+  bnum = math.ceil(len(train_dataset) / accumulation_steps / SETUP['batch_size'])
   train_dataset = train_dataset.shuffle(len(train_dataset), reshuffle_each_iteration=True)
 
   times_repeat = epochs if epoch_len is None else math.ceil(epochs * epoch_len / bnum)
