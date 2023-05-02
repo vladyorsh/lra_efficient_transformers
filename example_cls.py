@@ -15,8 +15,10 @@ from lra.models import *
 from lra.setups import *
 from lra.utils  import *
 
+
 import sys
-sys.path.append('/lnet/troja/work/people/yorsh/lra/long-range-arena')
+import os
+sys.path.append(os.path.realpath('long-range-arena'))
 
 print('Import dataset', flush=True)
 from lra_benchmarks.text_classification.input_pipeline import get_tc_datasets
@@ -77,30 +79,20 @@ test_accuracy = [  ]
 
 torch.cuda.empty_cache()
 
+#------------------------------------
+path = 'model_to_test.b'
 
-for i in range(1): ####!!!!!!!!!!!!!!
-  path = 'model_to_test_' + str(i) + '.b'
+model, criterion, optimizer, schedule_func, scheduler = training_setup(BPE_CLS_SETUP, encoder.vocab_size, att_factory)
 
-  model, criterion, optimizer, schedule_func, scheduler = training_setup(BPE_CLS_SETUP, encoder.vocab_size, att_factory)
-
-  checkpoint = train_cls_model(BPE_CLS_SETUP, model, path, train_dataset, valid_dataset, optimizer, criterion, scheduler)
-  model.load_state_dict(checkpoint['model_state_dict'])
+checkpoint = train_cls_model(BPE_CLS_SETUP, model, path, train_dataset, valid_dataset, optimizer, criterion, scheduler)
+model.load_state_dict(checkpoint['model_state_dict'])
   
-  _, _, acc = cls_test(model, criterion, test_dataset, BPE_CLS_SETUP['device'])
-  test_accuracy.append(acc)
+_, _, acc = cls_test(model, criterion, test_dataset, BPE_CLS_SETUP['device'])
+test_accuracy.append(acc)
 
 test_accuracy = np.mean(test_accuracy)
 
 print(f'\nTotal accuracy: {test_accuracy:.4f}')
-
-
-# In[9]:
-
-
-model
-
-
-# In[ ]:
 
 
 

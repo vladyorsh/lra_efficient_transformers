@@ -14,8 +14,8 @@ from contextlib import nullcontext
 BPE_CLS_SETUP = {
     'model_type' : ClassificationTransformer,
     
-    'batch_size' : 4, #32 in total
-    'accumulation_steps' : 8,
+    'batch_size' : 16, #32 in total
+    'accumulation_steps' : 2,
     'max_length':4000,
     
     'lr' : 0.05,
@@ -39,7 +39,7 @@ BPE_CLS_SETUP = {
     'criterion' : nn.CrossEntropyLoss,
     'optimizer' : optim.AdamW,
     'schedule' : get_sqrt_schedule,
-    'mixed_precision' : False,
+    'mixed_precision' : True,
 }
 
 LISTOPS_SETUP = {
@@ -146,7 +146,7 @@ def train_cls_model(SETUP, model, name, train_dataset, valid_dataset, optimizer,
 
   best_acc = 0.0
 
-  bnum = math.ceil(len(train_dataset) / accumulation_steps)
+  bnum = math.ceil(len(train_dataset) / accumulation_steps / setup['batch_size'])
   train_dataset = train_dataset.shuffle(len(train_dataset), reshuffle_each_iteration=True)
 
   times_repeat = epochs if epoch_len is None else math.ceil(epochs * epoch_len / bnum)
@@ -203,7 +203,7 @@ def train_cls_model(SETUP, model, name, train_dataset, valid_dataset, optimizer,
             additional_losses = sum(additional_losses) if additional_losses else torch.Tensor([ 0.0 ]).to(device)
             total_loss = (loss + additional_losses) / accumulation_steps
 
-            if mixed_precision: total_loss = scaler.scale(scaled_loss)
+            if mixed_precision: total_loss = scaler.scale(total_loss)
             total_loss.backward()
 
             acc = accuracy(outputs, labels)

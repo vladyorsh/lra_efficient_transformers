@@ -466,8 +466,6 @@ class DualClassifier(nn.Module):
 class LunaBlock(TBlock):
   def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate):
     super(LunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate)
-    self.layernorm_input=nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=False)
-    self.layernorm_inter=nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=False)
     self.layernorm_mem = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=False)
 
     self.attention_unpack = self.attention #TAttention(hidden_dim, qkv_dim, num_heads, dropout_rate)
@@ -480,7 +478,7 @@ class LunaBlock(TBlock):
     unpacked=self.attention_unpack(input, packed, packed)
 
     q = self.layernorm_input(input + unpacked)
-    m = self.layernorm_mem(memory+ packed)
+    m = self.layernorm_mem(memory + packed)
 
     y = self.ffn(q)
     q = self.layernorm_inter(q + y)
