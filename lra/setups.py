@@ -14,8 +14,8 @@ from contextlib import nullcontext
 BPE_CLS_SETUP = {
     'model_type' : ClassificationTransformer,
     
-    'batch_size' : 16, #32 in total
-    'accumulation_steps' : 2,
+    'batch_size' : 2, #32 in total
+    'accumulation_steps' : 16,
     'max_length':4000,
     
     'lr' : 0.05,
@@ -40,6 +40,8 @@ BPE_CLS_SETUP = {
     'optimizer' : optim.AdamW,
     'schedule' : get_sqrt_schedule,
     'mixed_precision' : True,
+    'early_stopping' : 10,
+    'nonconvergence_tolerance' : 15,
 }
 
 LISTOPS_SETUP = {
@@ -152,7 +154,15 @@ def train_cls_model(SETUP, model, name, train_dataset, valid_dataset, optimizer,
   times_repeat = epochs if epoch_len is None else math.ceil(epochs * epoch_len / bnum)
   train_dataset = train_dataset.repeat(times_repeat)
   train_datagen = iter(train_dataset)
-  
+
+  early_stopping = SETUP['early_stopping']
+  early_stopping_active = False
+  early_stopping_timer = early_stopping
+  early_stopping_value = 0
+  early_stopping_threshold = 1 / SETUP['classes']
+  random_threshold = 1 / SETUP['classes']
+  early_stop = False
+
   if epoch_len is not None:
     bnum = epoch_len
   
@@ -242,7 +252,6 @@ def train_cls_model(SETUP, model, name, train_dataset, valid_dataset, optimizer,
       print(f' - epoch_loss: {epoch_loss:.4f} - epoch_reg: {epoch_reg:.6f} - epoch_acc: {epoch_acc:.4f}', end='')
 
       epoch_loss, epoch_acc, epoch_reg = [], [], []
-
       
       if epoch >= skip_eval:
         model.eval()
@@ -278,7 +287,26 @@ def train_cls_model(SETUP, model, name, train_dataset, valid_dataset, optimizer,
       t = time.time() - t
 
       print(f' - valid_loss: {epoch_loss:.4f} - valid_reg: {epoch_reg:.6f} - valid_acc: {epoch_acc:.4f} - epoch_time: {t:.4f} s')
- 
+      
+      if not early_stopping_active:
+        if epoch > SETUP['nonconvergence_tolerance'] + skip_eval:
+          print('Early stopping...')
+          break
+        if epoch_acc > early_stopping_threshold * 1.1:
+          early_stopping_threshold = epoch_acc
+          early_stopping_active = True
+          print('Early stopping active')
+      else:
+         if epoch_acc > early_stopping_threshold:
+           early_stopping_timer = early_stopping
+           early_stopping_threshold = epoch_acc
+           print('Early stoppng reset to', early_stopping, 'steps')
+         else:
+           early_stopping_timer -= 1
+         if early_stopping_timer <= 0 or epoch_acc < random_threshold * 1.05:
+           print('Early stopping...')
+           break
+      
   checkpoint = torch.load(name)
   return checkpoint
 

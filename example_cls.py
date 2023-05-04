@@ -63,8 +63,8 @@ print(model)
 
 for device in range(torch.cuda.device_count()):
   t = torch.cuda.get_device_properties(device).total_memory
-  r = torch.cuda.memory_reserved(device)
-  a = torch.cuda.memory_allocated(device)
+  r = torch.cuda.memory_reserved(device) / 1024 ** 2
+  a = torch.cuda.memory_allocated(device) / 1024 ** 2
 
   t = t / 1024 ** 2
 
@@ -75,24 +75,23 @@ for device in range(torch.cuda.device_count()):
 
 import torch
 
-test_accuracy = [  ]
+for i in range(10):
+  test_accuracy = [  ]
+  torch.cuda.empty_cache()
 
-torch.cuda.empty_cache()
+  path = f'model_to_test_{i}.b'
 
-#------------------------------------
-path = 'model_to_test.b'
+  model, criterion, optimizer, schedule_func, scheduler = training_setup(BPE_CLS_SETUP, encoder.vocab_size, att_factory)
 
-model, criterion, optimizer, schedule_func, scheduler = training_setup(BPE_CLS_SETUP, encoder.vocab_size, att_factory)
-
-checkpoint = train_cls_model(BPE_CLS_SETUP, model, path, train_dataset, valid_dataset, optimizer, criterion, scheduler)
-model.load_state_dict(checkpoint['model_state_dict'])
+  checkpoint = train_cls_model(BPE_CLS_SETUP, model, path, train_dataset, valid_dataset, optimizer, criterion, scheduler)
+  model.load_state_dict(checkpoint['model_state_dict'])
   
-_, _, acc = cls_test(model, criterion, test_dataset, BPE_CLS_SETUP['device'])
-test_accuracy.append(acc)
+  _, _, acc = cls_test(model, criterion, test_dataset, BPE_CLS_SETUP['device'])
+  test_accuracy.append(acc)
 
-test_accuracy = np.mean(test_accuracy)
+  test_accuracy = np.mean(test_accuracy)
 
-print(f'\nTotal accuracy: {test_accuracy:.4f}')
+  print(f'\nTotal accuracy: {test_accuracy:.4f}')
 
 
 
