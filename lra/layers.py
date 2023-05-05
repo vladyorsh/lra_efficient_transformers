@@ -63,7 +63,7 @@ class TAttention(nn.Module):
     
     q, k, v = self.split_heads(q), self.split_heads(k), self.split_heads(v)
     if not euclidean:
-      q = torch.mul(q, 1. / torch.sqrt(torch.tensor(self.qkv_dim)))
+      q = torch.mul(q, 1. / torch.sqrt(torch.tensor(self.head_dim)))
       qk = torch.matmul(q, k.transpose(-1, -2))
     else:
       qk = torch.cdist(q, k)
