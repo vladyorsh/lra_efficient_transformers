@@ -21,7 +21,7 @@ import os
 sys.path.append(os.path.realpath('long-range-arena'))
 
 print('Import dataset', flush=True)
-from lra_benchmarks.listops.input_pipeline import get_tc_datasets
+from lra_benchmarks.listops.input_pipeline import get_datasets
 
 
 # In[2]:

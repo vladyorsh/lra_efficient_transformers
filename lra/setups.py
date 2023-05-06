@@ -83,6 +83,8 @@ LISTOPS_SETUP = {
 
 BPE_MATCH_SETUP = {
     'model_type' : MatchingTransformer,
+        
+    'data_path' : 'lra_release/lra_release/tsv_data',
     
     'batch_size' : 4,
     'accumulation_steps' : 8,

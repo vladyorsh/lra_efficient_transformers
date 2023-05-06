@@ -15,34 +15,34 @@ from lra.models import *
 from lra.setups import *
 from lra.utils  import *
 
-import torch.nn as nn
 
 import sys
 import os
 sys.path.append(os.path.realpath('long-range-arena'))
 
 print('Import dataset', flush=True)
-from lra_benchmarks.listops.input_pipeline import get_datasets
+from lra_benchmarks.matching.input_pipeline import get_matching_datasets
 
 
 # In[2]:
 
 print('Loading dataset', flush=True)
-train_dataset, valid_dataset, test_dataset, encoder = get_datasets(1, 'basic', data_dir=LISTOPS_SETUP['data_path'], batch_size=LISTOPS_SETUP['batch_size'], max_length=LISTOPS_SETUP['max_length'])
+train_dataset, valid_dataset, test_dataset, encoder = get_matching_datasets(1, None, tokenizer='char', data_dir=BPE_MATCH_SETUP['data_path'], batch_size=BPE_MATCH_SETUP['batch_size'], max_length=BPE_MATCH_SETUP['max_length'])
 
 # In[7]:
 
 
-LISTOPS_SETUP['model_type'] = LunaClassifier
-LISTOPS_SETUP['device'] = 'cuda'
-LISTOPS_SETUP['affine'] = False
+BPE_MATCH_SETUP['model_type'] = LunaClassifier
+BPE_MATCH_SETUP['device'] = 'cuda'
 
 def model_postprocess(model):
-  model.blocks = nn.ModuleList([ SelfLunaBlock(LISTOPS_SETUP['hidden_dim'], LISTOPS_SETUP['qkv_dim'], LISTOPS_SETUP['mlp_dim'], LISTOPS_SETUP['num_heads'], LISTOPS_SETUP['internal_dropout_rate'], LISTOPS_SETUP['affine']) for _ in LISTOPS_SETUP['num_blocks'])
+  for block in model.blocks:
+    block.attention_unpack.q = block.attention.q
+    block.attention_unpack.k = block.attention.k
         
 
 print('Test instantiation 1', flush=True)
-model, criterion, optimizer, schedule_func, scheduler = training_setup(LISTOPS_SETUP, encoder.vocab_size, model_postprocess)
+model, criterion, optimizer, schedule_func, scheduler = training_setup(BPE_MATCH_SETUP, encoder.vocab_size, model_postprocess)
 print(model)
 
 # In[ ]:
@@ -67,12 +67,12 @@ for i in range(10):
 
   path = f'model_to_test_{i}.b'
 
-  model, criterion, optimizer, schedule_func, scheduler = training_setup(LISTOPS_SETUP, encoder.vocab_size, model_postprocess)
+  model, criterion, optimizer, schedule_func, scheduler = training_setup(BPE_MATCH_SETUP, encoder.vocab_size, model_postprocess)
 
-  checkpoint = train_listops_model(LISTOPS_SETUP, model, path, train_dataset, valid_dataset, optimizer, criterion, scheduler)
+  checkpoint = train_matching_model(BPE_MATCH_SETUP, model, path, train_dataset, valid_dataset, optimizer, criterion, scheduler)
   model.load_state_dict(checkpoint['model_state_dict'])
   
-  _, _, acc = cls_test(model, criterion, test_dataset, LISTOPS_SETUP['device'])
+  _, _, acc = matching_test(model, criterion, test_dataset, BPE_MATCH_SETUP['device'])
   test_accuracy.append(acc)
 
   test_accuracy = np.mean(test_accuracy)
