@@ -29,7 +29,7 @@ class TEmbedding(nn.Module):
     return embed
 
 class TAttention(nn.Module):
-  def __init__(self, hidden_dim, qkv_dim, num_heads, dropout_rate):
+  def __init__(self, hidden_dim, qkv_dim, num_heads, dropout_rate, affine=False):
     super(TAttention, self).__init__()
     self.hidden_dim=hidden_dim
     self.qkv_dim   =qkv_dim
@@ -39,11 +39,11 @@ class TAttention(nn.Module):
     
     self.head_dim = qkv_dim // num_heads
 
-    self.q = nn.Linear(self.hidden_dim, self.qkv_dim, bias=False)
-    self.k = nn.Linear(self.hidden_dim, self.qkv_dim, bias=False)
-    self.v = nn.Linear(self.hidden_dim, self.qkv_dim, bias=False)
+    self.q = nn.Linear(self.hidden_dim, self.qkv_dim, bias=affine)
+    self.k = nn.Linear(self.hidden_dim, self.qkv_dim, bias=affine)
+    self.v = nn.Linear(self.hidden_dim, self.qkv_dim, bias=affine)
 
-    self.lin = nn.Linear(self.qkv_dim, self.hidden_dim, bias=False)
+    self.lin = nn.Linear(self.qkv_dim, self.hidden_dim, bias=affine)
 
     self.dropout = nn.Dropout(dropout_rate)
 
@@ -362,21 +362,21 @@ class FtAttention(nn.Module):
     return torch.fft.fft(torch.fft.fft(q, dim=-1), dim=-2).real
 
 class TBlock(nn.Module):
-  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate):
+  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine=False):
     super(TBlock, self).__init__()
 
     self.hidden_dim = hidden_dim
     self.qkv_dim  = qkv_dim
     self.mlp_dim  = mlp_dim
 
-    self.layernorm_input = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=False)
-    self.layernorm_inter = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=False)
+    self.layernorm_input = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
+    self.layernorm_inter = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
 
-    self.attention = TAttention(hidden_dim, qkv_dim, num_heads, dropout_rate)
+    self.attention = TAttention(hidden_dim, qkv_dim, num_heads, dropout_rate, affine)
 
     self.ffn       = nn.Sequential(
-        nn.Linear(hidden_dim, mlp_dim, bias=False), nn.GELU(), nn.Dropout(dropout_rate),
-        nn.Linear(mlp_dim, hidden_dim, bias=False), nn.Dropout(dropout_rate),
+        nn.Linear(hidden_dim, mlp_dim, bias=affine), nn.GELU(), nn.Dropout(dropout_rate),
+        nn.Linear(mlp_dim, hidden_dim, bias=affine), nn.Dropout(dropout_rate),
     )
 
 
@@ -393,21 +393,21 @@ class TBlock(nn.Module):
 
 #Encoder block with an additional skip
 class SBlock(nn.Module):
-  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate):
+  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine=False):
     super(SBlock, self).__init__()
 
     self.hidden_dim = hidden_dim
     self.qkv_dim  = qkv_dim
     self.mlp_dim  = mlp_dim
 
-    self.layernorm_input = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=False)
-    self.layernorm_inter = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=False)
+    self.layernorm_input = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
+    self.layernorm_inter = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
 
     self.attention = TAttention(hidden_dim, qkv_dim, num_heads, dropout_rate)
 
     self.ffn       = nn.Sequential(
-        nn.Linear(hidden_dim, mlp_dim, bias=False), nn.GELU(), nn.Dropout(dropout_rate),
-        nn.Linear(mlp_dim, hidden_dim, bias=False), nn.Dropout(dropout_rate),
+        nn.Linear(hidden_dim, mlp_dim, bias=affine), nn.GELU(), nn.Dropout(dropout_rate),
+        nn.Linear(mlp_dim, hidden_dim, bias=affine), nn.Dropout(dropout_rate),
     )
 
 
@@ -423,16 +423,16 @@ class SBlock(nn.Module):
     return x
 
 class TClassifier(nn.Module):
-  def __init__(self, classes, hidden_dim, inter_dim, dropout_rate):
+  def __init__(self, classes, hidden_dim, inter_dim, dropout_rate, affine=False):
     super(TClassifier, self).__init__()
 
-    self.layernorm = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=False)
+    self.layernorm = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
     self.dropout   = nn.Dropout(dropout_rate)
 
     self.ffn       = nn.Sequential(
-        nn.Linear(hidden_dim, inter_dim, bias=False), nn.GELU(),
+        nn.Linear(hidden_dim, inter_dim, bias=affine), nn.GELU(),
     )
-    self.output    = nn.Linear(inter_dim, classes, bias=False)
+    self.output    = nn.Linear(inter_dim, classes, bias=affine)
 
   def forward(self, x):
     x = self.layernorm(x)
@@ -445,14 +445,14 @@ class TClassifier(nn.Module):
     return logits
 
 class DualClassifier(nn.Module):
-  def __init__(self, classes, hidden_dim, inter_dim):
+  def __init__(self, classes, hidden_dim, inter_dim, affine=False):
     super(DualClassifier, self).__init__()
 
     self.ffn       = nn.Sequential(
-        nn.Linear(hidden_dim * 2, inter_dim, bias=False), nn.ReLU(),
-        nn.Linear(inter_dim, inter_dim // 2, bias=False), nn.ReLU(),
+        nn.Linear(hidden_dim * 2, inter_dim, bias=affine), nn.ReLU(),
+        nn.Linear(inter_dim, inter_dim // 2, bias=affine), nn.ReLU(),
     )
-    self.output    = nn.Linear(inter_dim // 2, classes, bias=False)
+    self.output    = nn.Linear(inter_dim // 2, classes, bias=affine)
 
   def forward(self, x):
     emb_1, emb_2 = x
@@ -463,12 +463,15 @@ class DualClassifier(nn.Module):
 
     return logits
 
+    
+    
+    
 class LunaBlock(TBlock):
-  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate):
-    super(LunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate)
-    self.layernorm_mem = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=False)
+  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine):
+    super(LunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine)
+    self.layernorm_mem = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
 
-    self.attention_unpack = self.attention #TAttention(hidden_dim, qkv_dim, num_heads, dropout_rate)
+    self.attention_unpack = TAttention(hidden_dim, qkv_dim, num_heads, dropout_rate)
     #self.attention_unpack.v = self.attention.v
     #self.attention_unpack.lin = self.attention.lin
 
@@ -484,3 +487,30 @@ class LunaBlock(TBlock):
     q = self.layernorm_inter(q + y)
 
     return q, m
+    
+class SelfLunaBlock(TBlock):
+  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine):
+    super(SelfLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine)
+    self.layernorm_mem = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
+    self.layernorm_mem_self = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
+
+    self.attention_unpack = TAttention(hidden_dim, qkv_dim, num_heads, dropout_rate)
+    self.attention_mem_self = self.attention
+    
+
+  def forward(self, input, memory, losses=[]):
+    
+    packed = self.attention(memory, input, input)
+    unpacked=self.attention_unpack(input, packed, packed)
+
+    q = self.layernorm_input(input + unpacked)
+    m = self.layernorm_mem(memory + packed)
+    
+    y = self.attention_mem_self(m, m, m)
+    m = self.layernorm_mem_self(m + y)
+
+    y = self.ffn(q)
+    q = self.layernorm_inter(q + y)
+
+    return q, m
+

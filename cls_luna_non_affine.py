@@ -34,29 +34,16 @@ train_dataset, valid_dataset, test_dataset, encoder = get_tc_datasets(1, 'imdb_r
 
 BPE_CLS_SETUP['model_type'] = LunaClassifier
 BPE_CLS_SETUP['device'] = 'cuda'
+BPE_CLS_SETUP['affine'] = False
 
-#def att_factory(hidden_dim, qkv_dim, num_heads, dropout_rate):
-#    
-#    lka = nn.Sequential(
-#        AMGOLU(num_heads, qkv_dim, qkv_dim // num_heads // 4, dropout_rate, nn.Sigmoid(), nn.Identity(), False, LAMBDA=0.0),
-#        AMGOLU(num_heads, qkv_dim, qkv_dim // num_heads // 4, dropout_rate, nn.Sigmoid(), nn.Identity(), False, LAMBDA=0.0),
-#        AMGOLU(num_heads, qkv_dim, qkv_dim // num_heads // 4, dropout_rate, nn.Sigmoid(), nn.Softplus(), False, LAMBDA=0.0),
+def model_postprocess(model):
+  for block in model.blocks:
+    block.attention_unpack.q = block.attention.q
+    block.attention_unpack.k = block.attention.k
         
-        #GatedOrthoKernel(num_heads, hidden_dim, dropout_rate, nn.Sigmoid(), nn.Identity(), False, LAMBDA=0.1),
-        #GatedOrthoKernel(num_heads, hidden_dim, dropout_rate, nn.Sigmoid(), nn.Identity(), False, LAMBDA=0.1),
-        #GatedOrthoKernel(num_heads, hidden_dim, dropout_rate, nn.Sigmoid(), nn.Softplus(), False, LAMBDA=0.1)
-
-        #HeadWiseFF(num_heads, qkv_dim, dropout_rate, nn.Softplus(), use_bias=False, LAMBDA=0.1),   
-#    )
-#    return LKAAttention(hidden_dim, qkv_dim, num_heads, dropout_rate, lka)
-    
-    #return FtAttention(hidden_dim, qkv_dim, num_heads, dropout_rate)
-    #return SimpleAttention(hidden_dim, qkv_dim, num_heads, dropout_rate, use_lin=True)
-    #return SimpleAttention(hidden_dim, qkv_dim, num_heads, dropout_rate, use_lin=False)
 
 print('Test instantiation 1', flush=True)
-att_factory=None
-model, criterion, optimizer, schedule_func, scheduler = training_setup(BPE_CLS_SETUP, encoder.vocab_size, att_factory)
+model, criterion, optimizer, schedule_func, scheduler = training_setup(BPE_CLS_SETUP, encoder.vocab_size, model_postprocess)
 print(model)
 
 # In[ ]:
@@ -81,7 +68,7 @@ for i in range(10):
 
   path = f'model_to_test_{i}.b'
 
-  model, criterion, optimizer, schedule_func, scheduler = training_setup(BPE_CLS_SETUP, encoder.vocab_size, att_factory)
+  model, criterion, optimizer, schedule_func, scheduler = training_setup(BPE_CLS_SETUP, encoder.vocab_size, model_postprocess)
 
   checkpoint = train_cls_model(BPE_CLS_SETUP, model, path, train_dataset, valid_dataset, optimizer, criterion, scheduler)
   model.load_state_dict(checkpoint['model_state_dict'])

@@ -14,9 +14,9 @@ from contextlib import nullcontext
 BPE_CLS_SETUP = {
     'model_type' : ClassificationTransformer,
     
-    'batch_size' : 2, #32 in total
-    'accumulation_steps' : 16,
-    'max_length':4000,
+    'batch_size' : 4, #32 in total
+    'accumulation_steps' : 8,
+    'max_length': 4000,
     
     'lr' : 0.05,
     'weight_decay' : 0.1,
@@ -34,6 +34,7 @@ BPE_CLS_SETUP = {
     'output_units' : 1024,
     'internal_dropout_rate' : 0.1,
     'output_dropout_rate' : 0.0,
+    'affine' : True,
     
     'device' : 'cuda:0',
     'criterion' : nn.CrossEntropyLoss,
@@ -67,12 +68,15 @@ LISTOPS_SETUP = {
     'output_units' : 2048,
     'internal_dropout_rate' : 0.1,
     'output_dropout_rate' : 0.0,
+    'affine' : True,
     
     'device' : 'cuda:0',
     'criterion' : nn.CrossEntropyLoss,
     'optimizer' : optim.AdamW,
     'schedule' : get_sqrt_schedule,
     'mixed_precision' : True,
+    'early_stopping' : 10000,
+    'nonconvergence_tolerance' : 50,
 }
 
 BPE_MATCH_SETUP = {
@@ -98,16 +102,19 @@ BPE_MATCH_SETUP = {
     'output_units' : 512,
     'internal_dropout_rate' : 0.1,
     'output_dropout_rate' : 0.0,
+    'affine' : True,
     
     'device' : 'cuda:0',
     'criterion' : nn.CrossEntropyLoss,
     'optimizer' : optim.AdamW,
     'schedule' : get_sqrt_schedule,
     'mixed_precision' : True,
+    'early_stopping' : 10,
+    'nonconvergence_tolerance' : 15,
 }
 
 #Creates a new instance of a model with given parameters
-def model_factory(SETUP, vocab_size, attention_factory):
+def model_factory(SETUP, vocab_size):
   model = SETUP['model_type'](
     classes   =SETUP['classes'],
     num_embeddings=vocab_size,
@@ -119,21 +126,22 @@ def model_factory(SETUP, vocab_size, attention_factory):
     num_blocks=SETUP['num_blocks'],
     output_mlp_units=SETUP['output_units'],
     internal_dropout_rate=SETUP['internal_dropout_rate'],
+    affine=SETUP['affine'],
   ).to(SETUP['device'])
-
-  if attention_factory:
-        for block in model.blocks:
-            block.attention = attention_factory(SETUP['hidden_dim'], SETUP['qkv_dim'], SETUP['num_heads'], SETUP['internal_dropout_rate']).to(SETUP['device'])
   
   return model
 
 #Returns a model, loss, optimizer and LR scheduler for training
-def training_setup(SETUP, vocab_size, attention_factory=None):
-    model = model_factory(SETUP, vocab_size, attention_factory)
+def training_setup(SETUP, vocab_size, model_postprocess=None):
+    model = model_factory(SETUP, vocab_size)
     criterion = SETUP['criterion']().to(SETUP['device'])
     optimizer = SETUP['optimizer'](model.parameters(), lr=SETUP['lr'], weight_decay=SETUP['weight_decay'])
     schedule_func = SETUP['schedule'](SETUP['warmup'])
     scheduler = LambdaLR(optimizer, schedule_func)
+    
+    if model_postprocess is not None:
+        model_postprocess(model)
+    
     return model, criterion, optimizer, schedule_func, scheduler
 
 #Training loops for classification, matching and lops models
@@ -303,7 +311,7 @@ def train_cls_model(SETUP, model, name, train_dataset, valid_dataset, optimizer,
            print('Early stoppng reset to', early_stopping, 'steps')
          else:
            early_stopping_timer -= 1
-         if early_stopping_timer <= 0 or epoch_acc < random_threshold * 1.05:
+         if early_stopping_timer <= 0 or ( (early_stopping_timer < early_stopping // 2) and (epoch_acc < random_threshold * 1.05) ):
            print('Early stopping...')
            break
       
@@ -317,9 +325,18 @@ def train_matching_model(SETUP, model, name, train_dataset, valid_dataset, optim
   epochs = SETUP['steps'] // epoch_len
   device = SETUP['device']
   skip_eval=SETUP['skip_eval']
+  mixed_precision = SETUP['mixed_precision']
 
   best_acc = 0.0
   train_datagen = iter(train_dataset)
+  
+  early_stopping = SETUP['early_stopping']
+  early_stopping_active = False
+  early_stopping_timer = early_stopping
+  early_stopping_value = 0
+  early_stopping_threshold = 1 / SETUP['classes']
+  random_threshold = 1 / SETUP['classes']
+  early_stop = False
       
   for epoch in range(epochs):  # loop over the dataset multiple times
       
@@ -341,6 +358,8 @@ def train_matching_model(SETUP, model, name, train_dataset, valid_dataset, optim
       print(f'Epoch {epoch}')
 
       process_inputs = lambda x: torch.Tensor(x.numpy()).to(torch.int64)
+      
+      scaler = torch.cuda.amp.GradScaler()
 
       for i in range(epoch_len):
           # zero the parameter gradients
@@ -362,17 +381,22 @@ def train_matching_model(SETUP, model, name, train_dataset, valid_dataset, optim
             inputs1, inputs2, labels = inputs1.to(device), inputs2.to(device), labels.to(device)
 
             # forward + backward + optimize
-            outputs, additional_losses = model((inputs1, inputs2))
-            loss = criterion(outputs, labels)
+            with torch.autocast(device_type='cuda', dtype=torch.float16) if mixed_precision else nullcontext():
+              outputs, additional_losses = model((inputs1, inputs2))
+              loss = criterion(outputs, labels)
 
             if torch.any(torch.isnan(loss)):
               print(loss)
               return None
 
             additional_losses = sum(additional_losses) if additional_losses else torch.Tensor([ 0.0 ]).to(device)
-            ((loss + additional_losses / 2) / accumulation_steps).backward() #multiply by 1/2 since we have a double input
+            total_loss = (loss + additional_losses) / accumulation_steps / 2
+
+            if mixed_precision: total_loss = scaler.scale(total_loss)
+            total_loss.backward()
 
             acc = accuracy(outputs, labels)
+            loss = loss.detach()
 
             running_loss = running_loss * running_momentum + (1 - running_momentum) * loss.item()
             running_loss_unb = running_loss / (1 - running_momentum ** (i * accumulation_steps + k + 1))
@@ -387,7 +411,11 @@ def train_matching_model(SETUP, model, name, train_dataset, valid_dataset, optim
             epoch_acc.append(acc)
             epoch_reg.append(additional_losses.item())
 
-          optimizer.step()
+          if mixed_precision:
+            scaler.step(optimizer)
+            scaler.update()
+          else:
+            optimizer.step()
 
           pbar = progress_bar(20, epoch_len, i + 1)
 
@@ -417,8 +445,9 @@ def train_matching_model(SETUP, model, name, train_dataset, valid_dataset, optim
             inputs1, inputs2, labels = process_inputs(inputs1), process_inputs(inputs2), process_inputs(labels)
             inputs1, inputs2, labels = inputs1.to(device), inputs2.to(device), labels.to(device)
 
-            outputs, aux_losses = model((inputs1, inputs2))
-            loss = criterion(outputs, labels)
+            with torch.autocast(device_type='cuda', dtype=torch.float16) if mixed_precision else nullcontext():
+                outputs, aux_losses = model((inputs1, inputs2))
+                loss = criterion(outputs, labels)
             acc = accuracy(outputs, labels)
             aux_losses = sum(aux_losses) if aux_losses else torch.Tensor([ 0.0 ]).to(device)
             aux_losses /= 2 #Doubled input
@@ -435,11 +464,30 @@ def train_matching_model(SETUP, model, name, train_dataset, valid_dataset, optim
       
       else:
         epoch_loss, epoch_acc, epoch_reg = 0.0, 0.0, 0.0
-
+        
       #epoch computing time
       t = time.time() - t
 
       print(f' - valid_loss: {epoch_loss:.4f} - valid_reg: {epoch_reg:.6f} - valid_acc: {epoch_acc:.4f} - epoch_time: {t:.4f} s')
+      
+      if not early_stopping_active:
+        if epoch > SETUP['nonconvergence_tolerance'] + skip_eval:
+          print('Early stopping...')
+          break
+        if epoch_acc > early_stopping_threshold * 1.1:
+          early_stopping_threshold = epoch_acc
+          early_stopping_active = True
+          print('Early stopping active')
+      else:
+         if epoch_acc > early_stopping_threshold:
+           early_stopping_timer = early_stopping
+           early_stopping_threshold = epoch_acc
+           print('Early stoppng reset to', early_stopping, 'steps')
+         else:
+           early_stopping_timer -= 1
+         if early_stopping_timer <= 0 or ( (early_stopping_timer < early_stopping // 2) and (epoch_acc < random_threshold * 1.05) ):
+           print('Early stopping...')
+           break
  
   checkpoint = torch.load(name)
   return checkpoint
@@ -450,9 +498,20 @@ def train_listops_model(SETUP, model, name, train_dataset, valid_dataset, optimi
   epochs = SETUP['steps'] // epoch_len
   device = SETUP['device']
   skip_eval=SETUP['skip_eval']
+  mixed_precision = SETUP['mixed_precision']
 
   best_acc = 0.0
   train_datagen = iter(train_dataset)
+  
+  early_stopping = SETUP['early_stopping']
+  early_stopping_active = False
+  early_stopping_timer = early_stopping
+  early_stopping_value = 0
+  early_stopping_threshold = 1 / SETUP['classes']
+  random_threshold = 1 / SETUP['classes']
+  early_stop = False
+  
+  scaler = torch.cuda.amp.GradScaler()
       
   for epoch in range(epochs):  # loop over the dataset multiple times
       
@@ -495,17 +554,18 @@ def train_listops_model(SETUP, model, name, train_dataset, valid_dataset, optimi
             inputs, labels = inputs.to(device), labels.to(device)
 
             # forward + backward + optimize
-            outputs, additional_losses = model(inputs)
-            loss = criterion(outputs, labels)
-
-            if torch.any(torch.isnan(loss)):
-              print(loss)
-              return None
+            with torch.autocast(device_type='cuda', dtype=torch.float16) if mixed_precision else nullcontext():
+                outputs, additional_losses = model(inputs)
+                loss = criterion(outputs, labels)
 
             additional_losses = sum(additional_losses) if additional_losses else torch.Tensor([ 0.0 ]).to(device)
-            ((loss + additional_losses) / accumulation_steps).backward()
+            total_loss = (loss + additional_losses) / accumulation_steps
+
+            if mixed_precision: total_loss = scaler.scale(total_loss)
+            total_loss.backward()
 
             acc = accuracy(outputs, labels)
+            loss = loss.detach()
 
             running_loss = running_loss * running_momentum + (1 - running_momentum) * loss.item()
             running_loss_unb = running_loss / (1 - running_momentum ** (i * accumulation_steps + k + 1))
@@ -520,7 +580,11 @@ def train_listops_model(SETUP, model, name, train_dataset, valid_dataset, optimi
             epoch_acc.append(acc)
             epoch_reg.append(additional_losses.item())
 
-          optimizer.step()
+          if mixed_precision:
+            scaler.step(optimizer)
+            scaler.update()
+          else:
+            optimizer.step()
 
           pbar = progress_bar(20, epoch_len, i + 1)
 
@@ -550,12 +614,13 @@ def train_listops_model(SETUP, model, name, train_dataset, valid_dataset, optimi
             inputs, labels = process_inputs(inputs), process_inputs(labels)
             inputs, labels = inputs.to(device), labels.to(device)
 
-            outputs, aux_losses = model(inputs)
-            loss = criterion(outputs, labels)
+            with torch.autocast(device_type='cuda', dtype=torch.float16) if mixed_precision else nullcontext():
+              outputs, aux_losses = model(inputs)
+              loss = criterion(outputs, labels)
             acc = accuracy(outputs, labels)
             aux_losses = sum(aux_losses) if aux_losses else torch.Tensor([ 0.0 ]).to(device)
 
-            epoch_loss.append(loss.item())
+            epoch_loss.append(loss.detach().item())
             epoch_acc.append(acc)
             epoch_reg.append(aux_losses.item())
 
@@ -572,6 +637,25 @@ def train_listops_model(SETUP, model, name, train_dataset, valid_dataset, optimi
       t = time.time() - t
 
       print(f' - valid_loss: {epoch_loss:.4f} - valid_reg: {epoch_reg:.6f} - valid_acc: {epoch_acc:.4f} - epoch_time: {t:.4f} s')
+      
+      if not early_stopping_active:
+        if epoch > SETUP['nonconvergence_tolerance'] + skip_eval:
+          print('Early stopping...')
+          break
+        if epoch_acc > early_stopping_threshold * 1.1:
+          early_stopping_threshold = epoch_acc
+          early_stopping_active = True
+          print('Early stopping active')
+      else:
+         if epoch_acc > early_stopping_threshold:
+           early_stopping_timer = early_stopping
+           early_stopping_threshold = epoch_acc
+           print('Early stoppng reset to', early_stopping, 'steps')
+         else:
+           early_stopping_timer -= 1
+         if early_stopping_timer <= 0 or ( (early_stopping_timer < early_stopping // 2) and (epoch_acc < random_threshold * 1.05) ):
+           print('Early stopping...')
+           break
  
   checkpoint = torch.load(name)
   return checkpoint
