@@ -38,7 +38,7 @@ BPE_CLS_SETUP['device'] = 'cuda'
 BPE_CLS_SETUP['affine'] = False
 
 def model_postprocess(model):
-  model.blocks = nn.ModuleList([ SelfLunaBlock(BPE_CLS_SETUP['hidden_dim'], BPE_CLS_SETUP['qkv_dim'], BPE_CLS_SETUP['mlp_dim'], BPE_CLS_SETUP['num_heads'], BPE_CLS_SETUP['internal_dropout_rate'], BPE_CLS_SETUP['affine']) for _ in BPE_CLS_SETUP['num_blocks'])
+  model.blocks = nn.ModuleList([ SelfLunaBlock(BPE_CLS_SETUP['hidden_dim'], BPE_CLS_SETUP['qkv_dim'], BPE_CLS_SETUP['mlp_dim'], BPE_CLS_SETUP['num_heads'], BPE_CLS_SETUP['internal_dropout_rate'], BPE_CLS_SETUP['affine']) for _ in BPE_CLS_SETUP['num_blocks'] ])
         
 
 print('Test instantiation 1', flush=True)
