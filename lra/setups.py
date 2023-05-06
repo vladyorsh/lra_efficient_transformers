@@ -47,6 +47,8 @@ BPE_CLS_SETUP = {
 
 LISTOPS_SETUP = {
     'model_type' : ClassificationTransformer,
+        
+    'data_path' : 'lra_release/listops-1000/',
     
     'batch_size' : 4,
     'accumulation_steps' : 8,
