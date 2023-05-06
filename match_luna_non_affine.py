@@ -32,7 +32,7 @@ train_dataset, valid_dataset, test_dataset, encoder = get_matching_datasets(1, N
 # In[7]:
 
 
-BPE_MATCH_SETUP['model_type'] = LunaClassifier
+BPE_MATCH_SETUP['model_type'] = LunaMatcher
 BPE_MATCH_SETUP['device'] = 'cuda'
 BPE_MATCH_SETUP['affine'] = False
 

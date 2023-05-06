@@ -32,7 +32,7 @@ train_dataset, valid_dataset, test_dataset, encoder = get_datasets(1, 'basic', d
 # In[7]:
 
 
-LISTOPS_SETUP['model_type'] = SetLikeMatcher
+LISTOPS_SETUP['model_type'] = SetLikeClassifier
 LISTOPS_SETUP['device'] = 'cuda'
 
 def model_postprocess(model):

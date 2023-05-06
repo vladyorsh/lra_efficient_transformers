@@ -32,7 +32,7 @@ train_dataset, valid_dataset, test_dataset, encoder = get_tc_datasets(1, 'imdb_r
 # In[7]:
 
 
-BPE_CLS_SETUP['model_type'] = SetLikeMatcher
+BPE_CLS_SETUP['model_type'] = SetLikeClassifier
 BPE_CLS_SETUP['device'] = 'cuda'
 
 def model_postprocess(model):
