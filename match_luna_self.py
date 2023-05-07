@@ -38,7 +38,7 @@ BPE_MATCH_SETUP['device'] = 'cuda'
 BPE_MATCH_SETUP['affine'] = False
 
 def model_postprocess(model):
-  model.blocks = nn.ModuleList([ SelfLunaBlock(BPE_MATCH_SETUP['hidden_dim'], BPE_MATCH_SETUP['qkv_dim'], BPE_MATCH_SETUP['mlp_dim'], BPE_MATCH_SETUP['num_heads'], BPE_MATCH_SETUP['internal_dropout_rate'], BPE_MATCH_SETUP['affine']) for _ in BPE_MATCH_SETUP['num_blocks'] ])
+  model.blocks = nn.ModuleList([ SelfLunaBlock(BPE_MATCH_SETUP['hidden_dim'], BPE_MATCH_SETUP['qkv_dim'], BPE_MATCH_SETUP['mlp_dim'], BPE_MATCH_SETUP['num_heads'], BPE_MATCH_SETUP['internal_dropout_rate'], BPE_MATCH_SETUP['affine']).to(BPE_MATCH_SETUP['device']) for _ in range(BPE_MATCH_SETUP['num_blocks']) ])
         
 
 print('Test instantiation 1', flush=True)

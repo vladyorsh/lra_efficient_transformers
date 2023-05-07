@@ -38,7 +38,7 @@ LISTOPS_SETUP['device'] = 'cuda'
 LISTOPS_SETUP['affine'] = False
 
 def model_postprocess(model):
-  model.blocks = nn.ModuleList([ SelfLunaBlock(LISTOPS_SETUP['hidden_dim'], LISTOPS_SETUP['qkv_dim'], LISTOPS_SETUP['mlp_dim'], LISTOPS_SETUP['num_heads'], LISTOPS_SETUP['internal_dropout_rate'], LISTOPS_SETUP['affine']) for _ in LISTOPS_SETUP['num_blocks'] ])
+  model.blocks = nn.ModuleList([ SelfLunaBlock(LISTOPS_SETUP['hidden_dim'], LISTOPS_SETUP['qkv_dim'], LISTOPS_SETUP['mlp_dim'], LISTOPS_SETUP['num_heads'], LISTOPS_SETUP['internal_dropout_rate'], LISTOPS_SETUP['affine']).to(LISTOPS_SETUP['device']) for _ in range(LISTOPS_SETUP['num_blocks']) ])
         
 
 print('Test instantiation 1', flush=True)
