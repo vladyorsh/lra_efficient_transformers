@@ -90,7 +90,7 @@ BPE_MATCH_SETUP = {
     'accumulation_steps' : 8,
     'max_length' : 4000,
     
-    'lr' : 0.05,
+    'lr' : 0.5,
     'weight_decay' : 0.1,
     'warmup' : 8000,
     'steps' : 15000,
