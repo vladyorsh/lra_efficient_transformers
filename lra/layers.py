@@ -52,7 +52,7 @@ class TAttention(nn.Module):
     x = x.view(* new_shape)
     return x.permute(0, 2, 1, 3)
 
-  def forward(self, q, k=None, v=None, losses=[], euclidean=False):
+  def forward(self, q, k=None, v=None, losses=[]):
     if k is None:
       k = v = q
     
@@ -62,19 +62,9 @@ class TAttention(nn.Module):
 
     
     q, k, v = self.split_heads(q), self.split_heads(k), self.split_heads(v)
-    if not euclidean:
-      q = torch.mul(q, 1. / torch.sqrt(torch.tensor(self.head_dim)))
-      qk = torch.matmul(q, k.transpose(-1, -2))
-    else:
-      qk = torch.cdist(q, k)
+    q = torch.mul(q, 1. / torch.sqrt(torch.tensor(self.head_dim)))
+    qk = torch.matmul(q, k.transpose(-1, -2))
     qk = nn.Softmax(dim=-1)(qk)
-
-    def assertion_function(tsr):
-      tsr = torch.sum(tsr, axis=-1)
-      tsr = tsr - torch.ones_like(tsr)
-      return torch.max(torch.abs(tsr)) < 1e-5
-
-    assert assertion_function(qk)
 
     qk = self.dropout(qk) #Like in TF implementation; could be done before Softmax by random -inf addition
 
@@ -467,13 +457,24 @@ class DualClassifier(nn.Module):
     
     
 class LunaBlock(TBlock):
-  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine):
+  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, shared_att='full'):
     super(LunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine)
     self.layernorm_mem = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
 
-    self.attention_unpack = TAttention(hidden_dim, qkv_dim, num_heads, dropout_rate)
-    #self.attention_unpack.v = self.attention.v
-    #self.attention_unpack.lin = self.attention.lin
+    if shared_att == 'full':
+        self.attention_unpack = self.attention
+    else:
+        self.attention_unpack = TAttention(hidden_dim, qkv_dim, num_heads, dropout_rate)
+        if shared_att is not None:
+            if 'q' in shared_att:
+                self.attention_unpack.q = self.attention.q
+            if 'k' in shared_att:
+                self.attention_unpack.k = self.attention.k
+            if 'v' in shared_att:
+                self.attention_unpack.v = self.attention.v
+            if 'o' in shared_att:
+                self.attention_unpack.lin = self.attention.lin
+
 
   def forward(self, input, memory, losses=[]):
     
