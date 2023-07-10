@@ -16,23 +16,7 @@ def get_sqrt_schedule(warmup_steps):
     return 1.0 * np.minimum(1.0, step / warmup_steps) / np.sqrt(np.maximum(step, warmup_steps))
 
   return lr_schedule
-
-def save_model(model, optimizer, name='/content/drive/MyDrive/Work/Misc/lka-mini-base.tar'):
-  torch.save({
-              'model_state_dict': model.state_dict(),
-              'optimizer_state_dict': optimizer.state_dict(),
-              }, name)
-
-def progress_bar(len, total, current):
-  current_scaled = int(round(len * current / total))
-
-  s = '[' + '=' * (current_scaled - 1)
-  s += '>' if current != total else '='
-  s += '-' * (len - current_scaled) + ']'
-
-  return s
-
-def accuracy(model_output, labels):
-  model_output = model_output.argmax(dim=-1)
-
-  return (labels == model_output).float().mean().cpu().numpy()
+  
+def torch_generator_wrapper(iterable):
+  for item in tfds.as_numpy(iterable):
+    yield { key : torch.from_numpy(value) for key, value in item.items() }
