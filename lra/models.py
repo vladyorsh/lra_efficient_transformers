@@ -4,7 +4,7 @@ import lightning.pytorch as pl
 
 class Encoder(nn.Module):
   def __init__(self, module_type, num_blocks, *args, **kwargs):
-    super(Encoder, self.).__init__()
+    super(Encoder, self).__init__()
         
     self.blocks = nn.ModuleList([ module_type(* args, ** kwargs) for _ in range(num_blocks) ])
     
