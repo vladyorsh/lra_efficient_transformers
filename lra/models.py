@@ -101,15 +101,13 @@ class LraLightningWrapper(pl.LightningModule):
         self.schedule = schedule
         
         #nn.ModuleDict is needed for correct handling of multi-device training
-        self.metrics = nn.ModuleDict({
+        self.train_metrics = nn.ModuleDict({
             'accuracy' : pl.metrics.classification.Accuracy(),
         })
         
-    def training_epoch_end(self, outs):
-        for name, metric in self.metrics.items():
-            name = name + '_epoch'
-            self.log(name, metric.compute())
-            metric.reset()
+        self.test_metrics = nn.ModuleDict({
+            'accuracy' : pl.metrics.classification.Accuracy(),
+        })
             
     def training_step(self, batch, batch_idx):
         inp, target = batch
@@ -118,17 +116,40 @@ class LraLightningWrapper(pl.LightningModule):
         auxiliary_losses = torch.mean(auxiliary_losses) if auxiliary_losses else 0.0
         loss = self.loss(preds, target)
         
-        self.log("loss", loss)
-        self.log("reg_loss", auxiliary_losses)
+        #Logging
+        #TODO: Check for the correct reset at the eval period end
+        self.log("loss", loss, on_step=True, on_epoch=True, prog_bar=True)
+        self.log("reg_loss", auxiliary_losses, on_step=True, on_epoch=True)
+        
+        for name, metric in self.train_metrics.items():
+            metric(outputs['preds'], outputs['target'])
+            self.log(name, metric, on_step=True, on_epoch=True, prog_bar=True)
+        
+        loss = loss + auxiliary_losses * self.reg_weight    
+        
+        return {'loss' : loss, 'preds' : preds, 'target' : target}
+            
+    def validation_step(self, batch, batch_idx):
+        inp, target = batch
+        preds, auxiliary_losses = self.model(inp)
+        
+        auxiliary_losses = torch.mean(auxiliary_losses) if auxiliary_losses else 0.0
+        loss = self.loss(preds, target)
+        
+        #Logging
+        #TODO: Check for the correct reset at the eval period end
+        self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("val_reg_loss", auxiliary_losses, on_step=False, on_epoch=True)
+        
+        for name, metric in self.test_metrics.items():
+            name = 'valid_' + name
+            metric(outputs['preds'], outputs['target'])
+            self.log(name, metric, on_step=False, on_epoch=True, prog_bar=True)
         
         loss = loss + auxiliary_losses * self.reg_weight    
         
         return {'loss' : loss, 'preds' : preds, 'target' : target}
         
-    def training_step_end(self, outputs):
-        for name, metric in self.metrics.items():
-            metric(outputs['preds'], outputs['target'])
-            self.log(name, metric)
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.base_lr, weight_decay=self.wd, betas=self.betas)

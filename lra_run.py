@@ -1,4 +1,3 @@
-from lra.layers import *
 from lra.models import *
 from lra.setups import *
 from lra.utils  import *
@@ -6,8 +5,6 @@ from lra.utils  import *
 import sys
 import os
 import argparse
-
-from lra_benchmarks.matching.input_pipeline import get_matching_datasets
 
 #TODO:
 #0.5 reg weight for matching
@@ -46,8 +43,18 @@ def get_lra_data(lib_path, data_path, task, batch_size, max_length):
     }
     
     return DATASETS_BY_TASK[task.lower()](batch_size, max_length)
+       
+def get_setup(task):
+    REGISTERED_SETUPS = {
+        'classification' : CLS_SETUP,
+        'matching' : MATCHING_SETUP,
+        'listops' : LISTOPS_SETUP,
+    }
+    
+    setup = REGISTERED_SETUPS[task]
+    return setup
         
-def get_model(task, length, model):
+def get_model(task, length, setup, model):
     BASE_MODELS = { 'classification' : ClassificationTransformer, 'matching' : MatchingTransformer }
     LUNA_MODELS = { 'classification' : LunaClassifier,            'matching' : LunaMatcher }
     
@@ -56,13 +63,6 @@ def get_model(task, length, model):
         'luna' : LUNA_MODELS,
     }
     
-    REGISTERED_SETUPS = {
-        'classification' : CLS_SETUP,
-        'matching' : MATCHING_SETUP,
-        'listops' : LISTOPS_SETUP,
-    }
-    
-    setup = REGISTERED_SETUPS[task]
     task = 'classification' if task in { 'classification', 'listops' } else 'matching'
     model_class = REGISTERED_MODELS[model][task]
     model = LraLightningWrapper(
@@ -88,11 +88,49 @@ def get_model(task, length, model):
     )
     
     return model
+    
+def get_batch_size_and_acc_steps(effective_batch_size, per_device_batch_size, devices, strategy):
+    ALLOWED_STRATEGIES = { 'ddp', 'single_tpu' }
+    if strategy not in ALLOWED_STRATEGIES:
+        raise ValueError(f'{strategy} strategy is disabled for safety reasons, use strategy from {ALLOWED_STRATEGIES} instead!')
+    
+    if effective_batch_size % devices:
+        raise ValueError('The SETUP BATCH SIZE is not divisible by the DEVICE COUNT for the chosen strategy!')
+    if strategy != 'ddp': #Other strategies may split the batch automatically between devices (be careful!)
+        sampled_batch_size = per_device_batch_size * devices
+    else: #For ddp we sample a full batch
+        sampled_batch_size = per_device_batch_size
+    if effective_batch_size % sampled_batch_size:
+        raise ValueError('The SETUP BATCH SIZE is not divisible by the EFFECTIVE ONE-PASS BATCH SIZE, try to select another per-device batch size!')
+    accumulation_steps = max(1, effective_batch_size // sampled_batch_size)
+    return sampled_batch_size, accumulation_steps
 
 def main(args):
-    task, max_length, model, batch_size, fp16, devices, lib_path, data_path = args.task, args.max_length, args.model, args.batch_size, args.fp16, args.devices, args.lib_path, args.data_path
-    train_dataset, valid_dataset, test_dataset, encoder = get_lra_data(lib_path, data_path, task, batch_size, max_length)
-    train_dataset, valid_dataset, test_dataset = torch_generator_wrapper(train_dataset), torch_generator_wrapper(valid_dataset), torch_generator_wrapper(test_dataset)
+    setup = get_setup(args.task)
     
-    model = get_model(task, model)
-    trainer = Trainer()
+    #Parse the training strategy and determine the sizes of sampled batches
+    
+    train_dataset, valid_dataset, test_dataset, encoder = get_lra_data(args.lib_path, args.data_path, args.task, sampled_batch_size, args.max_length)
+    train_dataset, valid_dataset, test_dataset = torch_generator_wrapper(train_dataset), torch_generator_wrapper(valid_dataset), torch_generator_wrapper(test_dataset)
+    sampled_batch_size, accumulation_steps = get_batch_size_and_acc_steps(setup['full_batch_size'], args.batch_size, args.devices, args.strategy)
+    
+    model = get_model(args.task, args.max_length, setup, args.model)
+    trainer = pl.Trainer(
+        accelerator=args.accelerator,
+        strategy=args.strategy,
+        devices=args.devices,
+        num_nodes=1,
+        precision=args.precision,
+        logger=pl.loggers.CSVLogger("logs", name="my_exp_name"),
+        callbacks=[
+            pl.callbacks.LearningRateMonitor(logging_interval='step'),
+            pl.callbacks.DeviceStatsMonitor(),
+            #pl.callbacks.EarlyStopping(...),
+            #pl.callbacks.RichProgressBar(refresh_rate=1, leave=True),
+        ],
+        max_steps=setup['20000'],
+        val_check_interval=setup['eval_period'],
+        accumulate_grad_batches=accumulation_steps,
+        #!!!!!!!!
+        fast_dev_run=True,
+    )
