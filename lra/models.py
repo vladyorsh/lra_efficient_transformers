@@ -35,7 +35,7 @@ class ClassificationTransformer(nn.Module):
 
 class LunaClassifier(ClassificationTransformer):
   def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, mem_size=256):
-    super(ClassificationTransformer, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine=True)
+    super(ClassificationTransformer, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine)
 
     self.encoder     = Encoder(LunaBlock, num_blocks, hidden_dim, qkv_dim, mlp_dim, num_heads, internal_dropout_rate, affine)    
     self.mem         = nn.Parameter(torch.empty(1, mem_size, hidden_dim), requires_grad=True)
@@ -52,7 +52,7 @@ class LunaClassifier(ClassificationTransformer):
 
 class MatchingTransformer(nn.Module):
   def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True):
-    super(ClassificationTransformer, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate)
+    super(ClassificationTransformer, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine)
     self.classifier  = DualClassifier(classes, hidden_dim, mlp_dim, affine)
 
   def forward(self, inputs):
@@ -70,7 +70,7 @@ class MatchingTransformer(nn.Module):
 
 class LunaMatcher(nn.Module):
   def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, mem_size=256):
-    super(LunaClassifier, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate)
+    super(LunaClassifier, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine)
     self.classifier  = DualClassifier(classes, hidden_dim, affine)
     
   def forward(self, inputs):
