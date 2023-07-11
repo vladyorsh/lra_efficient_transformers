@@ -17,12 +17,12 @@ class Encoder(nn.Module):
     return x
 
 class ClassificationTransformer(nn.Module):
-  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, output_mlp_units, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True):
+  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True):
     super(ClassificationTransformer, self).__init__()
     
     self.embed_layer = TEmbedding(num_embeddings, hidden_dim, seq_len)
     self.encoder     = Encoder(TBlock, num_blocks, hidden_dim, qkv_dim, mlp_dim, num_heads, internal_dropout_rate, affine)
-    self.classifier  = TClassifier(classes, hidden_dim, output_mlp_units, output_dropout_rate, affine)
+    self.classifier  = TClassifier(classes, hidden_dim, output_dropout_rate, mlp_dim, affine)
 
   def forward(self, pixel_values):
     additional_losses = []
@@ -34,8 +34,8 @@ class ClassificationTransformer(nn.Module):
     return x, additional_losses
 
 class LunaClassifier(ClassificationTransformer):
-  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, output_mlp_units, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, mem_size=256):
-    super(ClassificationTransformer, self).__init__()
+  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, mem_size=256):
+    super(ClassificationTransformer, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine=True)
 
     self.encoder     = Encoder(LunaBlock, num_blocks, hidden_dim, qkv_dim, mlp_dim, num_heads, internal_dropout_rate, affine)    
     self.mem         = nn.Parameter(torch.empty(1, mem_size, hidden_dim), requires_grad=True)
@@ -51,9 +51,9 @@ class LunaClassifier(ClassificationTransformer):
     return x, losses
 
 class MatchingTransformer(nn.Module):
-  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, output_mlp_units, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True):
-    super(ClassificationTransformer, self).__init__()
-    self.classifier  = DualClassifier(classes, hidden_dim, output_mlp_units, affine)
+  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True):
+    super(ClassificationTransformer, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate)
+    self.classifier  = DualClassifier(classes, hidden_dim, mlp_dim, affine)
 
   def forward(self, inputs):
     additional_losses = []
@@ -69,9 +69,9 @@ class MatchingTransformer(nn.Module):
     return x, additional_losses
 
 class LunaMatcher(nn.Module):
-  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, output_mlp_units, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, mem_size=256):
-    super(LunaClassifier, self).__init__()
-    self.classifier  = DualClassifier(classes, hidden_dim, output_mlp_units, affine)
+  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, mem_size=256):
+    super(LunaClassifier, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate)
+    self.classifier  = DualClassifier(classes, hidden_dim, affine)
     
   def forward(self, inputs):
     mem_1, mem_2 = self.mem, self.mem
