@@ -39,7 +39,7 @@ def get_setup(task):
     setup = REGISTERED_SETUPS[task]
     return setup
         
-def get_model(task, length, setup, model):
+def get_model(task, length, setup, model, encoder):
     BASE_MODELS = { 'classification' : ClassificationTransformer, 'matching' : MatchingTransformer }
     LUNA_MODELS = { 'classification' : LunaClassifier,            'matching' : LunaMatcher }
     
@@ -53,7 +53,7 @@ def get_model(task, length, setup, model):
     model = LraLightningWrapper(
         model_class(
             classes=setup['classes'],
-            num_embeddings=setup['num_embeddings'],
+            num_embeddings=encoder.vocab_size,
             seq_len=length,
             hidden_dim=setup['hidden_dim'],
             qkv_dim=setup['qkv_dim'],
@@ -98,7 +98,7 @@ def main(args):
     train_dataset, valid_dataset, test_dataset, encoder = get_lra_data(args.lib_path, args.data_path, args.task, sampled_batch_size, args.max_length)
     train_dataset, valid_dataset, test_dataset = torch_generator_wrapper(train_dataset), torch_generator_wrapper(valid_dataset), torch_generator_wrapper(test_dataset)
     
-    model = get_model(args.task, args.max_length, setup, args.model)
+    model = get_model(args.task, args.max_length, setup, args.model, encoder)
     trainer = pl.Trainer(
         accelerator=args.accelerator,
         strategy=args.strategy,
