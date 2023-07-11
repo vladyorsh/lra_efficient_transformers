@@ -6,7 +6,7 @@ CLS_SETUP = {
     'lr' : 0.05,
     'weight_decay' : 0.1,
     'steps' : 20000,
-    'schedule' : lambda: get_sqrt_schedule(warmup=8000),
+    'schedule' : lambda: get_sqrt_schedule(warmup_steps=8000),
     'eval_period' : 200,
     
     'classes' : 2,
@@ -26,7 +26,7 @@ LISTOPS_SETUP = {
     
     'lr' : 0.005,
     'weight_decay' : 0.1,
-    'schedule' : get_sqrt_schedule(warmup=1000),
+    'schedule' : get_sqrt_schedule(warmup_steps=1000),
     'steps' : 15000,
     'eval_period' : 50,
     
@@ -48,7 +48,7 @@ MATCHING_SETUP = {
     
     'lr' : 0.5,
     'weight_decay' : 0.1,
-    'schedule' : get_sqrt_schedule(warmup=8000),
+    'schedule' : get_sqrt_schedule(warmup_steps=8000),
     'steps' : 20000,
     'eval_period' : 200,
     'skip_eval' : 0,
