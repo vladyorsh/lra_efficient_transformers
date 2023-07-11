@@ -60,7 +60,6 @@ def get_model(task, length, setup, model, encoder):
             mlp_dim=setup['mlp_dim'],
             num_heads=setup['num_heads'],
             num_blocks=setup['num_blocks'],
-            output_mlp_units=setup['output_mlp_units'],
             internal_dropout_rate=setup['internal_dropout_rate'],
             output_dropout_rate=setup['output_dropout_rate'],
             affine=setup['affine'],
