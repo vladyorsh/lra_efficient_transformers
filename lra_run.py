@@ -11,21 +11,6 @@ import argparse
 #redo with lightning cli
 #get rid of setups
 
-#Args:
-#task
-#length
-#model
-
-#batch_size
-#precision
-
-#lra_lib_path
-#lra_data_path
-
-#device
-#n devices
-#
-
 def get_lra_data(lib_path, data_path, task, batch_size, max_length):
     sys.path.append(os.path.realpath(lib_path))
         
@@ -109,10 +94,9 @@ def main(args):
     setup = get_setup(args.task)
     
     #Parse the training strategy and determine the sizes of sampled batches
-    
+    sampled_batch_size, accumulation_steps = get_batch_size_and_acc_steps(setup['full_batch_size'], args.batch_size, args.devices, args.strategy)
     train_dataset, valid_dataset, test_dataset, encoder = get_lra_data(args.lib_path, args.data_path, args.task, sampled_batch_size, args.max_length)
     train_dataset, valid_dataset, test_dataset = torch_generator_wrapper(train_dataset), torch_generator_wrapper(valid_dataset), torch_generator_wrapper(test_dataset)
-    sampled_batch_size, accumulation_steps = get_batch_size_and_acc_steps(setup['full_batch_size'], args.batch_size, args.devices, args.strategy)
     
     model = get_model(args.task, args.max_length, setup, args.model)
     trainer = pl.Trainer(
@@ -134,3 +118,20 @@ def main(args):
         #!!!!!!!!
         fast_dev_run=True,
     )
+
+    
+ if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Run LRA tasks with chosen models.')
+    parser.add_argument('--task', help='LRA task to be run on')
+    parser.add_argument('--max_length', type=int, help='max input length')
+    parser.add_argument('--model', help='model architecture')
+    parser.add_argument('--batch_size', type=int, help='per-device batch size')
+    parser.add_argument('--precision', help='PytorchLightning precision settings for faster computation', default='32-true')
+    parser.add_argument('--lra_lib_path', help='relative path to the LRA cloned repo', default='long-range-arena')
+    parser.add_argument('--lra_data_path', help='relative path to the LRA unpacked data', default='lra_release')
+    parser.add_argument('--device', help='device type to be used', default='gpu')
+    parser.add_argument('--devices', help='device count', type=int, default=1)
+    parser.add_argument('--strategy', help='distribution strategy', default='ddp')
+    
+    args = parser.parse_args()
+    main(args)
