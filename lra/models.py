@@ -91,7 +91,7 @@ class LunaMatcher(MatchingTransformer):
 class LossMetric(torchmetrics.Metric):
     def __init__(self):
         super().__init__()
-        self.add_state("values", default=torch.tensor(0), dist_reduce_fx="cat")
+        self.add_state("values", default=torch.tensor(0.0), dist_reduce_fx="cat")
 
     def update(self, value):
         value = value.detach()
