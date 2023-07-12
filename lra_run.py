@@ -111,7 +111,7 @@ def main(args):
             #pl.callbacks.EarlyStopping(...),
             #pl.callbacks.RichProgressBar(refresh_rate=1, leave=True),
         ],
-        max_steps=setup['20000'],
+        max_steps=setup['steps'],
         val_check_interval=setup['eval_period'],
         accumulate_grad_batches=accumulation_steps,
         #!!!!!!!!
