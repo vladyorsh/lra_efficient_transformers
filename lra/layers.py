@@ -415,6 +415,7 @@ class SBlock(nn.Module):
 class TClassifier(nn.Module):
   def __init__(self, classes, hidden_dim, inter_dim, dropout_rate, affine=False):
     super(TClassifier, self).__init__()
+    self.classes   = classes
 
     self.layernorm = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
     self.dropout   = nn.Dropout(dropout_rate)
@@ -437,6 +438,7 @@ class TClassifier(nn.Module):
 class DualClassifier(nn.Module):
   def __init__(self, classes, hidden_dim, inter_dim, affine=False):
     super(DualClassifier, self).__init__()
+    self.classes   = classes
 
     self.ffn       = nn.Sequential(
         nn.Linear(hidden_dim * 2, inter_dim, bias=affine), nn.ReLU(),
