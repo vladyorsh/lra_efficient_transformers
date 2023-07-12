@@ -111,7 +111,7 @@ class LraLightningWrapper(pl.LightningModule):
         })
             
     def training_step(self, batch, batch_idx):
-        inp, target = batch
+        inp, target = batch['inputs'], batch['targets']
         preds, auxiliary_losses = self.model(inp)
         
         auxiliary_losses = torch.mean(auxiliary_losses) if auxiliary_losses else 0.0
@@ -123,15 +123,15 @@ class LraLightningWrapper(pl.LightningModule):
         self.log("reg_loss", auxiliary_losses, on_step=True, on_epoch=True)
         
         for name, metric in self.train_metrics.items():
-            metric(outputs['preds'], outputs['target'])
+            metric(preds, target)
             self.log(name, metric, on_step=True, on_epoch=True, prog_bar=True)
         
         loss = loss + auxiliary_losses * self.reg_weight    
         
-        return {'loss' : loss, 'preds' : preds, 'target' : target}
+        return loss
             
     def validation_step(self, batch, batch_idx):
-        inp, target = batch
+        inp, target = batch['inputs'], batch['targets']
         preds, auxiliary_losses = self.model(inp)
         
         auxiliary_losses = torch.mean(auxiliary_losses) if auxiliary_losses else 0.0
@@ -144,12 +144,12 @@ class LraLightningWrapper(pl.LightningModule):
         
         for name, metric in self.test_metrics.items():
             name = 'valid_' + name
-            metric(outputs['preds'], outputs['target'])
+            metric(preds, target)
             self.log(name, metric, on_step=False, on_epoch=True, prog_bar=True)
         
         loss = loss + auxiliary_losses * self.reg_weight    
         
-        return {'loss' : loss, 'preds' : preds, 'target' : target}
+        return loss
         
 
     def configure_optimizers(self):
