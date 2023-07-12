@@ -5,7 +5,7 @@ import lightning.pytorch as pl
 class Encoder(nn.Module):
   def __init__(self, module_type, num_blocks, *args, **kwargs):
     super(Encoder, self).__init__()
-        
+    
     self.blocks = nn.ModuleList([ module_type(* args, ** kwargs) for _ in range(num_blocks) ])
     
   def forward(self, x, losses=[]):
@@ -22,7 +22,7 @@ class ClassificationTransformer(nn.Module):
     
     self.embed_layer = TEmbedding(num_embeddings, hidden_dim, seq_len)
     self.encoder     = Encoder(TBlock, num_blocks, hidden_dim, qkv_dim, mlp_dim, num_heads, internal_dropout_rate, affine)
-    self.classifier  = TClassifier(classes, hidden_dim, output_dropout_rate, mlp_dim, affine)
+    self.classifier  = TClassifier(classes, hidden_dim, mlp_dim, output_dropout_rate, affine)
 
   def forward(self, pixel_values):
     additional_losses = []
