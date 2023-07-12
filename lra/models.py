@@ -1,7 +1,7 @@
 from .layers import *
 import torch
 import lightning.pytorch as pl
-import torchmetrics
+import pytorch_lightning.metrics
 
 class Encoder(nn.Module):
   def __init__(self, module_type, num_blocks, *args, **kwargs):
@@ -103,11 +103,11 @@ class LraLightningWrapper(pl.LightningModule):
         
         #nn.ModuleDict is needed for correct handling of multi-device training
         self.train_metrics = nn.ModuleDict({
-            'accuracy' : torchmetrics.classification.Accuracy(),
+            'accuracy' : metrics.classification.Accuracy(),
         })
         
         self.test_metrics = nn.ModuleDict({
-            'accuracy' : torchmetrics.classification.Accuracy(),
+            'accuracy' : metrics.classification.Accuracy(),
         })
             
     def training_step(self, batch, batch_idx):
