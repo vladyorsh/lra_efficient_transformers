@@ -33,5 +33,5 @@ class TFDatasetWrapper(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         return self.samples[idx]
 
-def wrap_tf_dataset(tf_dataset, verbose=True):
-    return torch.utils.data.DataLoader(TFDatasetWrapper(tf_dataset, verbose))
+def wrap_lra_tf_dataset(tf_dataset, verbose=True):
+    return torch.utils.data.DataLoader(TFDatasetWrapper(tf_dataset, verbose), collate_fn=lambda x: { key : value[0] for key, value in x.items() })

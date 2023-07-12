@@ -133,7 +133,7 @@ class LraLightningWrapper(pl.LightningModule):
         return loss
             
     def validation_step(self, batch, batch_idx):
-        inp, target = batch['inputs'], batch['targets']
+        inp, target = torch.from_numpy(batch['inputs'], device=self.device), torch.from_numpy(batch['targets'], device=self.device)
         preds, auxiliary_losses = self.model(inp)
         
         auxiliary_losses = torch.mean(auxiliary_losses) if auxiliary_losses else 0.0
