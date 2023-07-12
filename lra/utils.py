@@ -18,7 +18,20 @@ def get_sqrt_schedule(warmup_steps):
 
   return lr_schedule
   
-#TODO: Seed/shuffling
-def torch_generator_wrapper(iterable):
-  for item in tfds.as_numpy(iterable):
-    yield { key : torch.from_numpy(value) for key, value in item.items() }
+class TFDatasetWrapper(torch.utils.data.Dataset):
+    def __init__(self, tf_dataset, verbose=True):
+        self.tf_dataset = tfds.as_numpy(tf_dataset)
+        self.samples = [  ]
+        for i, sample in enumerate(self.tf_dataset):
+          self.samples.append(sample)
+          if verbose: print('\rFetching dataset samples: ' + str(i) + '...', end='')
+        if verbose: print()
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx):
+        return self.samples[idx]
+
+def wrap_tf_dataset(tf_dataset, verbose=True):
+    return torch.utils.data.DataLoader(TFDatasetWrapper(tf_dataset, verbose))
