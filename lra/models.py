@@ -94,7 +94,8 @@ class LossMetric(torchmetrics.Metric):
         self.add_state("values", default=[], dist_reduce_fx="cat")
 
     def update(self, value):
-        value = value.detach()
+        if torch.is_tensor(value):
+            value = value.detach()
         self.values.append(value)
 
     def compute(self):
