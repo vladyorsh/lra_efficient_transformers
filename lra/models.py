@@ -91,7 +91,7 @@ class LunaMatcher(MatchingTransformer):
 class LraLightningWrapper(pl.LightningModule):
     def __init__(self, model, reg_weight=1.0, betas=(0.9, 0.98), base_lr=0.05, wd=0.1, schedule=lambda x: 1.0):
         super().__init__()
-        self.automatic_optimization = False
+        #self.automatic_optimization = False
         self.model = model
         self.loss  = nn.CrossEntropyLoss()
         

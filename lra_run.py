@@ -117,6 +117,8 @@ def main(args):
         #!!!!!!!!
         fast_dev_run=True,
     )
+    trainer.fit(model, train_dataloaders=train_dataset, val_dataloaders=valid_dataset)
+
 
     
 if __name__ == "__main__":
