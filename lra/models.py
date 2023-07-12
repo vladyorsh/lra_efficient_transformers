@@ -103,11 +103,11 @@ class LraLightningWrapper(pl.LightningModule):
         
         #nn.ModuleDict is needed for correct handling of multi-device training
         self.train_metrics = nn.ModuleDict({
-            'accuracy' : torchmetrics.classification.MulticlassAccuracy(),
+            'accuracy' : torchmetrics.classification.MulticlassAccuracy(self.model.classifier.classes),
         })
         
         self.test_metrics = nn.ModuleDict({
-            'accuracy' : torchmetrics.classification.MulticlassAccuracy(),
+            'accuracy' : torchmetrics.classification.MulticlassAccuracy(self.model.classifier.classes),
         })
             
     def training_step(self, batch, batch_idx):
