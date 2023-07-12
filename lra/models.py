@@ -119,6 +119,8 @@ class LraLightningWrapper(pl.LightningModule):
         
         #Logging
         #TODO: Check for the correct reset at the eval period end
+        #TODO: sync_dist=True for training step
+        #TODO: Check static graph
         self.log("loss", loss, on_step=True, on_epoch=True, prog_bar=True)
         self.log("reg_loss", auxiliary_losses, on_step=True, on_epoch=True)
         
@@ -139,13 +141,13 @@ class LraLightningWrapper(pl.LightningModule):
         
         #Logging
         #TODO: Check for the correct reset at the eval period end
-        self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("val_reg_loss", auxiliary_losses, on_step=False, on_epoch=True)
+        self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("val_reg_loss", auxiliary_losses, on_step=False, on_epoch=True, sync_dist=True)
         
         for name, metric in self.test_metrics.items():
             name = 'valid_' + name
             metric(preds, target)
-            self.log(name, metric, on_step=False, on_epoch=True, prog_bar=True)
+            self.log(name, metric, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         
         loss = loss + auxiliary_losses * self.reg_weight    
         

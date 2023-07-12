@@ -18,6 +18,7 @@ def get_sqrt_schedule(warmup_steps):
 
   return lr_schedule
   
+#TODO: Seed/shuffling
 def torch_generator_wrapper(iterable):
   for item in tfds.as_numpy(iterable):
     yield { key : torch.from_numpy(value) for key, value in item.items() }

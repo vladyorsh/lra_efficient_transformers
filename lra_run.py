@@ -74,7 +74,7 @@ def get_model(task, length, setup, model, encoder):
     return model
     
 def get_batch_size_and_acc_steps(effective_batch_size, per_device_batch_size, devices, strategy):
-    ALLOWED_STRATEGIES = { 'ddp', 'single_tpu' }
+    ALLOWED_STRATEGIES = { 'ddp', 'single_tpu', 'single' }
     if strategy not in ALLOWED_STRATEGIES:
         raise ValueError(f'{strategy} strategy is disabled for safety reasons, use strategy from {ALLOWED_STRATEGIES} instead!')
     
@@ -86,21 +86,23 @@ def get_batch_size_and_acc_steps(effective_batch_size, per_device_batch_size, de
         sampled_batch_size = per_device_batch_size
     if effective_batch_size % sampled_batch_size:
         raise ValueError('The SETUP BATCH SIZE is not divisible by the EFFECTIVE ONE-PASS BATCH SIZE, try to select another per-device batch size!')
+    if strategy == 'single':
+        strategy = pl.strategies.SingleDeviceStrategy(device='cuda')
     accumulation_steps = max(1, effective_batch_size // sampled_batch_size)
-    return sampled_batch_size, accumulation_steps
+    return sampled_batch_size, accumulation_steps, strategy
 
 def main(args):
     setup = get_setup(args.task)
     
     #Parse the training strategy and determine the sizes of sampled batches
-    sampled_batch_size, accumulation_steps = get_batch_size_and_acc_steps(setup['full_batch_size'], args.batch_size, args.devices, args.strategy)
+    sampled_batch_size, accumulation_steps, strategy = get_batch_size_and_acc_steps(setup['full_batch_size'], args.batch_size, args.devices, args.strategy)
     train_dataset, valid_dataset, test_dataset, encoder = get_lra_data(args.lib_path, args.data_path, args.task, sampled_batch_size, args.max_length)
     train_dataset, valid_dataset, test_dataset = torch_generator_wrapper(train_dataset), torch_generator_wrapper(valid_dataset), torch_generator_wrapper(test_dataset)
     
     model = get_model(args.task, args.max_length, setup, args.model, encoder)
     trainer = pl.Trainer(
         accelerator=args.accelerator,
-        strategy=args.strategy,
+        strategy=strategy,
         devices=args.devices,
         num_nodes=1,
         precision=args.precision,
@@ -115,7 +117,7 @@ def main(args):
         val_check_interval=setup['eval_period'],
         accumulate_grad_batches=accumulation_steps,
         #!!!!!!!!
-        fast_dev_run=True,
+        fast_dev_run=False,
     )
     trainer.fit(model, train_dataloaders=train_dataset, val_dataloaders=valid_dataset)
 
