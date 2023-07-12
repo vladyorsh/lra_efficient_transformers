@@ -180,6 +180,7 @@ class LraLightningWrapper(pl.LightningModule):
         self.test_metrics['reg_loss'](auxiliary_losses)
         
         for name, metric in self.test_metrics.items():
+            if name in { 'loss', 'reg_loss' }: continue
             metric(preds, target)
         
         loss = loss + auxiliary_losses * self.reg_weight    
