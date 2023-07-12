@@ -88,6 +88,18 @@ class LunaMatcher(MatchingTransformer):
 
     return x, additional_losses
     
+class LossMetric(torchmetrics.Metric):
+    def __init__(self):
+        super().__init__()
+        self.add_state("values", default=torch.tensor(0), dist_reduce_fx="cat")
+
+    def update(self, value):
+        value = value.detach()
+        self.values.append(value)
+
+    def compute(self):
+        return torch.mean(torch.Tensor(self.values))
+    
 class LraLightningWrapper(pl.LightningModule):
     def __init__(self, model, reg_weight=1.0, betas=(0.9, 0.98), base_lr=0.05, wd=0.1, schedule=lambda x: 1.0):
         super().__init__()
@@ -103,12 +115,23 @@ class LraLightningWrapper(pl.LightningModule):
         
         #nn.ModuleDict is needed for correct handling of multi-device training
         self.train_metrics = nn.ModuleDict({
+            'loss'     : LossMetric(),
+            'reg_loss' : LossMetric(),
             'accuracy' : torchmetrics.classification.MulticlassAccuracy(self.model.classifier.classes),
         })
         
         self.test_metrics = nn.ModuleDict({
+            'loss'     : LossMetric(),
+            'reg_loss' : LossMetric(),
             'accuracy' : torchmetrics.classification.MulticlassAccuracy(self.model.classifier.classes),
         })
+    
+        
+    def on_train_start(self):
+        for name, metric in self.train_metrics.items():
+            metric.reset()
+        for name, metric in self.test_metrics.items():
+            metric.reset()
             
     def training_step(self, batch, batch_idx):
         inp, target = torch.from_numpy(batch['inputs']).to(self.device), torch.from_numpy(batch['targets']).to(self.device)
@@ -119,18 +142,30 @@ class LraLightningWrapper(pl.LightningModule):
         
         #Logging
         #TODO: Check for the correct reset at the eval period end
-        #TODO: sync_dist=True for training step
         #TODO: Check static graph
-        self.log("loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=inp.shape[0])
-        self.log("reg_loss", auxiliary_losses, on_step=True, on_epoch=True, batch_size=inp.shape[0])
+        #TODO: Manage inputs without explicit keys
+        
+        self.train_metrics['loss'](loss)
+        self.train_metrics['reg_loss'](auxiliary_losses)
+        
+        self.log("loss_step",     self.train_metrics['loss'], prog_bar=True)
+        self.log("reg_loss_step", self.train_metrics['reg_loss'])
         
         for name, metric in self.train_metrics.items():
+            if name in { 'loss', 'reg_loss' }: continue
             metric(preds, target)
-            self.log(name, metric, on_step=True, on_epoch=True, prog_bar=True, batch_size=inp.shape[0])
+            self.log(name + '_step', metric, prog_bar=True)
         
         loss = loss + auxiliary_losses * self.reg_weight    
         
         return loss
+        
+    def on_validation_start(self):
+        for name, metric in self.train_metrics.items():
+            name = name + '_epoch'
+            self.log(name, metric.compute(), sync_dist=True)
+        for name, metric in self.test_metrics.items():
+            metric.reset()
             
     def validation_step(self, batch, batch_idx):
         inp, target = torch.from_numpy(batch['inputs']).to(self.device), torch.from_numpy(batch['targets']).to(self.device)
@@ -140,20 +175,35 @@ class LraLightningWrapper(pl.LightningModule):
         loss = self.loss(preds, target)
         
         #Logging
-        #TODO: Check for the correct reset at the eval period end
-        self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True, batch_size=inp.shape[0])
-        self.log("val_reg_loss", auxiliary_losses, on_step=False, on_epoch=True, sync_dist=True, batch_size=inp.shape[0])
+        self.test_metrics['loss'](loss)
+        self.test_metrics['reg_loss'](auxiliary_losses)
         
         for name, metric in self.test_metrics.items():
-            name = 'valid_' + name
             metric(preds, target)
-            self.log(name, metric, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True, batch_size=inp.shape[0])
         
         loss = loss + auxiliary_losses * self.reg_weight    
         
         return loss
         
-
+    def on_validation_end(self):
+        for name, metric in self.train_metrics.items():
+            metric.reset()
+        for name, metric in self.test_metrics.items():
+            name = 'valid_' + name + '_epoch'
+            self.log(name, metric.compute(), sync_dist=True)
+            
+    def on_test_start(self):
+        for name, metric in self.test_metrics.items():
+            metric.reset()
+            
+    def test_step(self, batch, batch_idx):
+        return self.validation_step(batch, batch_idx)
+        
+    def on_test_end(self):
+        for name, metric in self.test_metrics.items():
+            name = 'test_' + name + '_epoch'
+            self.log(name, metric.compute(), sync_dist=True)
+    
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.base_lr, weight_decay=self.wd, betas=self.betas)
         

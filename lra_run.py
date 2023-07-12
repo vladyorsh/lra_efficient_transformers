@@ -109,7 +109,7 @@ def main(args):
         logger=pl.loggers.CSVLogger("logs", name="my_exp_name"),
         callbacks=[
             pl.callbacks.LearningRateMonitor(logging_interval='step'),
-            pl.callbacks.DeviceStatsMonitor(),
+            #pl.callbacks.DeviceStatsMonitor(),
             #pl.callbacks.EarlyStopping(...),
             #pl.callbacks.RichProgressBar(refresh_rate=1, leave=True),
         ],
