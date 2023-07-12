@@ -128,7 +128,7 @@ if __name__ == "__main__":
     parser.add_argument('--precision', help='PytorchLightning precision settings for faster computation', default='32-true')
     parser.add_argument('--lib_path', help='relative path to the LRA cloned repo', default='long-range-arena')
     parser.add_argument('--data_path', help='relative path to the LRA unpacked data', default='lra_release')
-    parser.add_argument('--device', help='device type to be used', default='gpu')
+    parser.add_argument('--accelerator', help='device type to be used', default='gpu')
     parser.add_argument('--devices', help='device count', type=int, default=1)
     parser.add_argument('--strategy', help='distribution strategy', default='ddp')
     
