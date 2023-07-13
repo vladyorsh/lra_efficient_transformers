@@ -150,7 +150,7 @@ class LraLightningWrapper(pl.LightningModule):
         self.train_metrics['reg_loss'](auxiliary_losses)
         
         self.log("loss_step",     self.train_metrics['loss'], prog_bar=True)
-        self.log("reg_loss_step", self.train_metrics['reg_loss'])
+        self.log("reg_loss_step", self.train_metrics['reg_loss'], prog_bar=True)
         
         for name, metric in self.train_metrics.items():
             if name in { 'loss', 'reg_loss' }: continue
@@ -166,7 +166,7 @@ class LraLightningWrapper(pl.LightningModule):
         #Logging the epoch training metrics since the "epoch" ends there
         for name, metric in self.train_metrics.items():
             name = name + '_epoch'
-            self.log(name, metric.compute(), sync_dist=True)
+            self.log(name, metric.compute(), sync_dist=True, prog_bar=True)
         #Preparing fresh metrics for validation
         for name, metric in self.test_metrics.items():
             metric.reset()
@@ -182,13 +182,13 @@ class LraLightningWrapper(pl.LightningModule):
         self.test_metrics['loss'](loss)
         self.test_metrics['reg_loss'](auxiliary_losses)
             
-        self.log('val_loss', self.test_metrics['loss'], on_step=False, on_epoch=True, sync_dist=True, batch_size=inp.shape[0])
-        self.log('val_reg_loss', self.test_metrics['reg_loss'], on_step=False, on_epoch=True, sync_dist=True, batch_size=inp.shape[0])
+        self.log('val_loss', self.test_metrics['loss'], on_step=False, on_epoch=True, sync_dist=True, batch_size=inp.shape[0], prog_bar=True)
+        self.log('val_reg_loss', self.test_metrics['reg_loss'], on_step=False, on_epoch=True, sync_dist=True, batch_size=inp.shape[0], prog_bar=True)
         
         for name, metric in self.test_metrics.items():
             if name in { 'loss', 'reg_loss' }: continue
             metric(preds, target)
-            self.log('val_' + name, metric, on_step=False, on_epoch=True, sync_dist=True, batch_size=inp.shape[0])
+            self.log('val_' + name, metric, on_step=False, on_epoch=True, sync_dist=True, batch_size=inp.shape[0], prog_bar=True)
         
         loss = loss + auxiliary_losses * self.reg_weight    
         
@@ -204,12 +204,30 @@ class LraLightningWrapper(pl.LightningModule):
             metric.reset()
             
     def test_step(self, batch, batch_idx):
-        return self.validation_step(batch, batch_idx)
+        inp, target = torch.from_numpy(batch['inputs']).to(self.device), torch.from_numpy(batch['targets']).to(self.device)
+        preds, auxiliary_losses = self.model(inp)
         
-    def on_test_end(self):
+        auxiliary_losses = torch.mean(auxiliary_losses) if auxiliary_losses else torch.tensor(0.0)
+        loss = self.loss(preds, target)
+        
+        #Logging
+        self.test_metrics['loss'](loss)
+        self.test_metrics['reg_loss'](auxiliary_losses)
+            
+        self.log('test_loss', self.test_metrics['loss'], on_step=False, on_epoch=True, sync_dist=True, batch_size=inp.shape[0], prog_bar=True)
+        self.log('test_reg_loss', self.test_metrics['reg_loss'], on_step=False, on_epoch=True, sync_dist=True, batch_size=inp.shape[0], prog_bar=True)
+        
         for name, metric in self.test_metrics.items():
-            name = 'test_' + name + '_epoch'
-            self.log(name, metric.compute(), sync_dist=True)
+            if name in { 'loss', 'reg_loss' }: continue
+            metric(preds, target)
+            self.log('test_' + name, metric, on_step=False, on_epoch=True, sync_dist=True, batch_size=inp.shape[0], prog_bar=True)
+        
+        loss = loss + auxiliary_losses * self.reg_weight    
+        
+        return loss
+        
+    #def on_test_end(self):
+    #    ...
     
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.base_lr, weight_decay=self.wd, betas=self.betas)
