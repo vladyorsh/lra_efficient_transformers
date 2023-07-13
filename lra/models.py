@@ -166,7 +166,7 @@ class LraLightningWrapper(pl.LightningModule):
             if isinstance(item, Iterable):
                 self.log_artifacts(item, prefix=f'{i}_')
             else:
-                artifact, name, type, log_every = artifact.artifact, artifact.name, artifact.type, artifact.log_every
+                artifact, name, type, log_every = item.artifact, item.name, item.type, item.log_every
                 if not (self.trainer.global_step % log_every):
                     name = prefix + name
                     if isinstance(type, Iterable):
