@@ -3,6 +3,7 @@ import torch
 import lightning.pytorch as pl
 import torchmetrics
 from collections.abc import Iterable
+import matplotlib.pyplot as plt
 
 class Encoder(nn.Module):
   def __init__(self, module_type, num_blocks, *args, **kwargs):
