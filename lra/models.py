@@ -162,7 +162,7 @@ class LraLightningWrapper(pl.LightningModule):
             raise NotImplementedError('Other artifact types are not yet supported!')
             
     def log_artifacts(self, artifacts, prefix=''):
-        for i, item in enumerate(artifacts)
+        for i, item in enumerate(artifacts):
             if isinstance(item, Iterable):
                 self.log_artifacts(item, prefix=f'{i}_')
             else:
