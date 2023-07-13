@@ -115,6 +115,7 @@ def main(args):
             #Progress bars
             #pl.callbacks.RichProgressBar(refresh_rate=1, leave=True),
             #PBar(refresh_rate=50),
+            pl.callbacks.TQDMProgressBar(refresh_rate=100),
         ],
         max_steps=setup['steps'],
         val_check_interval=setup['eval_period'],
