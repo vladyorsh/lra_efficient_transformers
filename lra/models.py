@@ -153,6 +153,8 @@ class LraLightningWrapper(pl.LightningModule):
         exp = self.logger.experiment
         name= type + '_' + name
         
+        scale = 8
+        
         if type == 'tensor_slice':
             plt.imshow(artifact)
             exp.add_figure(name, plt.gcf(), global_step=self.trainer.global_step, close=True)
@@ -163,7 +165,7 @@ class LraLightningWrapper(pl.LightningModule):
             while ncols > 4 and ncols > 2 * nrows and not (ncols % 2):
                 ncols //= 2
                 nrows *= 2
-            fig, ax = plt.subplots(figsize=(ncols * 4, nrows * 4), ncols=ncols, nrows=nrows)
+            fig, ax = plt.subplots(figsize=(ncols * scale, nrows * scale), ncols=ncols, nrows=nrows)
             for axis, image in zip(ax, artifact):
                 axis.imshow(image)
             exp.add_figure(name, fig, global_step=self.trainer.global_step, close=True)

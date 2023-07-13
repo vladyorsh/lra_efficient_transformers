@@ -126,10 +126,12 @@ def main(args):
             pl.callbacks.TQDMProgressBar(refresh_rate=100),
         ],
         max_steps=setup['steps'],
+        check_val_every_n_epoch=None,
         val_check_interval=setup['eval_period'],
         accumulate_grad_batches=accumulation_steps,
         #!!!!!!!!
         fast_dev_run=False,
+        barebones=False,
     )
     trainer.fit(model, train_dataloaders=train_dataset, val_dataloaders=valid_dataset)
 
