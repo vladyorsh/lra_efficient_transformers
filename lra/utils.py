@@ -39,7 +39,7 @@ class TFDatasetWrapper(torch.utils.data.Dataset):
 def wrap_lra_tf_dataset(tf_dataset, verbose=True):
     return torch.utils.data.DataLoader(TFDatasetWrapper(tf_dataset, verbose), collate_fn=lambda x: x[0])
     
-class PBar(TQDMProgressBar):
+class PBar(pl.callbacks.TQDMProgressBar):
     def init_validation_tqdm(self):
         bar = tqdm(            
             disable=True,            
