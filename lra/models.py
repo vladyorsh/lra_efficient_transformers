@@ -152,9 +152,22 @@ class LraLightningWrapper(pl.LightningModule):
     def log_artifact(self, artifact, type, name):
         exp = self.logger.experiment
         name= type + '_' + name
+        
         if type == 'tensor_slice':
             plt.imshow(artifact)
             exp.add_figure(name, plt.gcf(), global_step=self.trainer.global_step, close=True)
+        elif type == 'tensor_stack':
+            batch_size = artifact.shape[0]
+            ncols=batch_size
+            nrows=1
+            while ncols > 4 and ncols > 2 * nrows and not (ncols % 2):
+                ncols //= 2
+                nrows *= 2
+            fig, ax = plt.subplots(figsize=(ncols * 4, nrows * 4), ncols=ncols, nrows=nrows)
+            for axis, image in zip(ax, artifact):
+                axis.imshow(image)
+            exp.add_figure(name, fig, global_step=self.trainer.global_step, close=True)
+            
         elif type == 'hist':
             plt.hist(artifact.flatten(), bins=50, edgecolor='black')
             plt.grid()
