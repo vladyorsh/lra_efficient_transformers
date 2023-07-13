@@ -106,7 +106,7 @@ class TBlock(nn.Module):
     x, att = self.attention(x, losses=losses)
     
     artifacts.append(
-        Artifact(att[0], 'att_logits', 'tensor_slice', self.logging_frequency),
+        Artifact(att[0], 'att_logits', 'tensor_stack', self.logging_frequency),
     )
 
     x = input + x
@@ -195,8 +195,8 @@ class LunaBlock(TBlock):
     artifacts.append( (
     Artifact(packed[0], 'packed', ('tensor_slice', 'hist'), self.logging_frequency),
     Artifact(unpacked[0], 'unpacked', ('tensor_slice', 'hist'), self.logging_frequency),
-    Artifact(packed_att[0], 'packed_att_logits', 'tensor_slice', self.logging_frequency),
-    Artifact(unpacked_att[0], 'unpacked_att_logits', 'tensor_slice', self.logging_frequency),
+    Artifact(packed_att[0], 'packed_att_logits', 'tensor_stack', self.logging_frequency),
+    Artifact(unpacked_att[0], 'unpacked_att_logits', 'tensor_stack', self.logging_frequency),
     Artifact(memory[0], 'input_memory', ('tensor_slice', 'hist'), self.logging_frequency),
     ) )
 
