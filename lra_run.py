@@ -111,7 +111,10 @@ def main(args):
             pl.callbacks.LearningRateMonitor(logging_interval='step'),
             #pl.callbacks.DeviceStatsMonitor(),
             #pl.callbacks.EarlyStopping(...),
+            
+            #Progress bars
             #pl.callbacks.RichProgressBar(refresh_rate=1, leave=True),
+            PBar(refresh_rate=50),
         ],
         max_steps=setup['steps'],
         val_check_interval=setup['eval_period'],

@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import tensorflow_datasets as tfds
+import lightning.pytorch as pl
 
 def num_parameters(model):
   return sum(list(map(
@@ -37,3 +38,10 @@ class TFDatasetWrapper(torch.utils.data.Dataset):
 #However, the shuffling will occur only between batches, not across the whole dataset
 def wrap_lra_tf_dataset(tf_dataset, verbose=True):
     return torch.utils.data.DataLoader(TFDatasetWrapper(tf_dataset, verbose), collate_fn=lambda x: x[0])
+    
+class PBar(TQDMProgressBar):
+    def init_validation_tqdm(self):
+        bar = tqdm(            
+            disable=True,            
+        )
+        return bar
