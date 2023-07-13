@@ -161,10 +161,13 @@ class LraLightningWrapper(pl.LightningModule):
         
         return loss
         
+    #Validation logging logic is meant to be used with completing only a set number of train steps per "epoch" but with the complete validation over the whole dataset
     def on_validation_start(self):
+        #Logging the epoch training metrics since the "epoch" ends there
         for name, metric in self.train_metrics.items():
             name = name + '_epoch'
             self.log(name, metric.compute(), sync_dist=True)
+        #Preparing fresh metrics for validation
         for name, metric in self.test_metrics.items():
             metric.reset()
             
@@ -178,21 +181,23 @@ class LraLightningWrapper(pl.LightningModule):
         #Logging
         self.test_metrics['loss'](loss)
         self.test_metrics['reg_loss'](auxiliary_losses)
+            
+        self.log('val_loss', self.test_metrics['loss'], on_step=False, on_epoch=True, sync_dist=True, batch_size=inp.shape[0])
+        self.log('val_reg_loss', self.test_metrics['reg_loss'], on_step=False, on_epoch=True, sync_dist=True, batch_size=inp.shape[0])
         
         for name, metric in self.test_metrics.items():
             if name in { 'loss', 'reg_loss' }: continue
             metric(preds, target)
+            self.log('val_' + metric, metric, on_step=False, on_epoch=True, sync_dist=True, batch_size=inp.shape[0])
         
         loss = loss + auxiliary_losses * self.reg_weight    
         
         return loss
         
     def on_validation_end(self):
+        #Clear training metrics since the "epoch" ends there
         for name, metric in self.train_metrics.items():
             metric.reset()
-        for name, metric in self.test_metrics.items():
-            name = 'valid_' + name + '_epoch'
-            self.log(name, metric.compute(), sync_dist=True)
             
     def on_test_start(self):
         for name, metric in self.test_metrics.items():
