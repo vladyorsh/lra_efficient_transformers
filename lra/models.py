@@ -176,7 +176,8 @@ class LraLightningWrapper(pl.LightningModule):
         loss = self.loss(preds, target)
         
         #Logging
-        self.log_artifacts(artifacts)
+        if self.log_non_scalars:
+            self.log_artifacts(artifacts)
         
         self.train_metrics['loss'](loss)
         self.train_metrics['reg_loss'](auxiliary_losses)
