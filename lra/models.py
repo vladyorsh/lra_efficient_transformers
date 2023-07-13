@@ -160,7 +160,7 @@ class LraLightningWrapper(pl.LightningModule):
             plt.grid()
             exp.add_figure(name, plt.gcf(), global_step=self.trainer.global_step, close=True)
         else:
-            raise NotImplementedError('Other artifact types are not yet supported!')
+            raise NotImplementedError(f'Other artifact types such as {type} are not yet supported!')
             
     def log_artifacts(self, artifacts, prefix=''):
         for i, item in enumerate(artifacts):
@@ -170,7 +170,7 @@ class LraLightningWrapper(pl.LightningModule):
                 artifact, name, type, log_every = item.artifact, item.name, item.type, item.log_every
                 if not (self.trainer.global_step % log_every):
                     name = prefix + name
-                    if isinstance(type, Iterable):
+                    if not isinstance(type, str):
                         for t in type: self.log_artifact(artifact, t, name)
                     else:
                         self.log_artifact(artifact, type, name)
