@@ -110,7 +110,7 @@ def main(args):
         devices=args.devices,
         num_nodes=1,
         precision=args.precision,
-        logger=loggers.TensorBoardLogger('logs', name=args.exp_name), #pl.loggers.CSVLogger("logs", name=args.exp_name),
+        logger=pl.loggers.TensorBoardLogger('logs', name=args.exp_name), #pl.loggers.CSVLogger("logs", name=args.exp_name),
         callbacks=[
             pl.callbacks.LearningRateMonitor(logging_interval='step'),
             #pl.callbacks.DeviceStatsMonitor(),
