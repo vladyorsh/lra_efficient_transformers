@@ -20,6 +20,15 @@ def get_sqrt_schedule(warmup_steps):
 
   return lr_schedule
   
+class Artifact:
+    def __init__(self, artifact, name, type, log_every):
+        self.artifact = artifact #What to log
+        if torch.is_tensor(self.artifact):
+            self.artifact = self.artifact.detach().cpu()
+        self.name = name #How to name
+        self.type = type #How to log
+        self.log_every = log_every #When to log
+  
 #TF datasets provided by LRA authors are awkward to use with Torch models
 #As an ad-hoc solution dataset batches are being prefetched and then treated as the Dataset samples
 class TFDatasetWrapper(torch.utils.data.Dataset):

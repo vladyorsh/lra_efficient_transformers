@@ -10,6 +10,8 @@ import argparse
 #Check the static graph option
 #Manage inputs without explicit keys
 #Model optional args
+#Pass and log other artifacts (memory footprint, attention images)
+#Use tfds API before making a Torch wrapper for better batching
 #----------
 #0.5 reg weight for matching
 #Get rid of setup dictionaries
@@ -43,7 +45,7 @@ def get_setup(task):
     setup = REGISTERED_SETUPS[task]
     return setup
         
-def get_model(task, length, setup, model, encoder):
+def get_model(task, length, setup, model, encoder, log_non_scalars):
     BASE_MODELS = { 'classification' : ClassificationTransformer, 'matching' : MatchingTransformer }
     LUNA_MODELS = { 'classification' : LunaClassifier,            'matching' : LunaMatcher }
     
@@ -73,12 +75,13 @@ def get_model(task, length, setup, model, encoder):
         base_lr=setup['lr'],
         wd=setup['weight_decay'],
         schedule=setup['schedule'](),
+        log_non_scalars=log_non_scalars,
     )
     
     return model
     
 def get_batch_size_and_acc_steps(effective_batch_size, per_device_batch_size, devices, strategy):
-    ALLOWED_STRATEGIES = { 'ddp', 'single_tpu', 'single' }
+    ALLOWED_STRATEGIES = { 'ddp', 'single_tpu', 'single', 'xla' }
     if strategy not in ALLOWED_STRATEGIES:
         raise ValueError(f'{strategy} strategy is disabled for safety reasons, use strategy from {ALLOWED_STRATEGIES} instead!')
     
@@ -103,7 +106,7 @@ def main(args):
     train_dataset, valid_dataset, test_dataset, encoder = get_lra_data(args.lib_path, args.data_path, args.task, sampled_batch_size, args.max_length)
     train_dataset, valid_dataset, test_dataset = wrap_lra_tf_dataset(train_dataset), wrap_lra_tf_dataset(valid_dataset), wrap_lra_tf_dataset(test_dataset)
     
-    model = get_model(args.task, args.max_length, setup, args.model, encoder)
+    model = get_model(args.task, args.max_length, setup, args.model, encoder, args.log_non_scalars)
     trainer = pl.Trainer(
         accelerator=args.accelerator,
         strategy=strategy,
@@ -145,5 +148,6 @@ if __name__ == "__main__":
     parser.add_argument('--strategy', help='distribution strategy', default='ddp')
     parser.add_argument('--data_workers', help='number of DataLoader workers', type=int, default=0)
     parser.add_argument('--exp_name', help='experiment name', default='my_exp_name')
+    parser.add_argument('--log_non_scalars', help='log non-scalar artifacts, e.g. images', type=bool, default=True)
     args = parser.parse_args()
     main(args)
