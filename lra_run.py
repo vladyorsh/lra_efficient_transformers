@@ -124,6 +124,9 @@ def main(args):
             #pl.callbacks.RichProgressBar(refresh_rate=1, leave=True),
             #PBar(refresh_rate=50),
             pl.callbacks.TQDMProgressBar(refresh_rate=100),
+            
+            #Early stopping
+            pl.callbacks.EarlyStopping('val_accuracy', min_delta=-0.01, patience=setup['patience'], verbose=True, mode='max', check_on_train_epoch_end=False),
         ],
         max_steps=setup['steps'],
         check_val_every_n_epoch=None,
