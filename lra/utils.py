@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import tensorflow_datasets as tfds
 import lightning.pytorch as pl
+import tqdm
 
 def num_parameters(model):
   return sum(list(map(
@@ -19,6 +20,8 @@ def get_sqrt_schedule(warmup_steps):
 
   return lr_schedule
   
+#TF datasets provided by LRA authors are awkward to use with Torch models
+#As an ad-hoc solution dataset batches are being prefetched and then treated as the Dataset samples
 class TFDatasetWrapper(torch.utils.data.Dataset):
     def __init__(self, tf_dataset, verbose=True):
         self.tf_dataset = tfds.as_numpy(tf_dataset)
