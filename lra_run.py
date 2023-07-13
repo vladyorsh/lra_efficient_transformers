@@ -114,7 +114,7 @@ def main(args):
             
             #Progress bars
             #pl.callbacks.RichProgressBar(refresh_rate=1, leave=True),
-            PBar(refresh_rate=50),
+            #PBar(refresh_rate=50),
         ],
         max_steps=setup['steps'],
         val_check_interval=setup['eval_period'],
