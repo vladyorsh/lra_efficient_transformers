@@ -68,10 +68,12 @@ class MatchingTransformer(ClassificationTransformer):
     emb_1 = self.embed_layer(inputs[0])
     emb_2 = self.embed_layer(inputs[1])
 
-    emb_1 = self.encoder(emb_1, losses=additional_losses, artifacts_1)
-    emb_2 = self.encoder(emb_2, losses=additional_losses, artifacts_2)
+    emb_1 = self.encoder(emb_1, losses=additional_losses, artifacts=artifacts_1)
+    emb_2 = self.encoder(emb_2, losses=additional_losses, artifacts=artifacts_2)
     
     x = self.classifier((emb_1, emb_2))
+    
+    artifacts = list(zip(artifacts_1, artifacts_2))
 
     return x, additional_losses, artifacts
 
@@ -83,15 +85,19 @@ class LunaMatcher(LunaClassifier):
   def forward(self, inputs):
     mem_1, mem_2 = self.mem, self.mem
     additional_losses = []
-    artifacts=artifacts
+    artifacts_1 = []
+    artifacts_2 = []
+
 
     emb_1 = self.embed_layer(inputs[0])
     emb_2 = self.embed_layer(inputs[1])
 
-    emb_1, mem_1 = self.encoder((emb_1, mem_1), losses=additional_losses, artifacts=artifacts)
-    emb_2, mem_2 = self.encoder((emb_2, mem_2), losses=additional_losses, artifacts=artifacts)
+    emb_1, mem_1 = self.encoder((emb_1, mem_1), losses=additional_losses, artifacts=artifacts_1)
+    emb_2, mem_2 = self.encoder((emb_2, mem_2), losses=additional_losses, artifacts=artifacts_2)
     
     x = self.classifier((emb_1, emb_2))
+    
+    artifacts = list(zip(artifacts_1, artifacts_2))
 
     return x, additional_losses, artifacts
     
