@@ -44,7 +44,7 @@ def wrap_lra_tf_dataset(tf_dataset, verbose=True):
     
 class PBar(pl.callbacks.TQDMProgressBar):
     def init_validation_tqdm(self):
-        bar = tqdm(            
+        bar = tqdm.tqdm(            
             disable=True,            
         )
         return bar
