@@ -24,7 +24,7 @@ class Artifact:
     def __init__(self, artifact, name, type, log_every):
         self.artifact = artifact #What to log
         if torch.is_tensor(self.artifact):
-            self.artifact = self.artifact.detach().cpu()
+            self.artifact = self.artifact.detach().cpu().float()
         self.name = name #How to name
         self.type = type #How to log
         self.log_every = log_every #When to log
