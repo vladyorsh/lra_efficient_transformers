@@ -142,10 +142,6 @@ class LraLightningWrapper(pl.LightningModule):
         loss = self.loss(preds, target)
         
         #Logging
-        #TODO: Check for the correct reset at the eval period end
-        #TODO: Check static graph
-        #TODO: Manage inputs without explicit keys
-        
         self.train_metrics['loss'](loss)
         self.train_metrics['reg_loss'](auxiliary_losses)
         

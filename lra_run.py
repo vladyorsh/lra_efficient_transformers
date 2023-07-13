@@ -7,9 +7,13 @@ import os
 import argparse
 
 #TODO:
+#Check the static graph option
+#Manage inputs without explicit keys
+#Model optional args
+#----------
 #0.5 reg weight for matching
-#redo with lightning cli
-#get rid of setups
+#Get rid of setup dictionaries
+#Redo with Lightning CLI
 
 def get_lra_data(lib_path, data_path, task, batch_size, max_length):
     sys.path.append(os.path.realpath(lib_path))
@@ -65,7 +69,7 @@ def get_model(task, length, setup, model, encoder):
             affine=setup['affine'],
         ),
         reg_weight=1.0,
-        betas=(0.9, 0.98),
+        betas=(0.9, 0.999), #Original LRA uses 0.98, but may yield quite unsatisfying results
         base_lr=setup['lr'],
         wd=setup['weight_decay'],
         schedule=setup['schedule'](),
@@ -106,7 +110,7 @@ def main(args):
         devices=args.devices,
         num_nodes=1,
         precision=args.precision,
-        logger=pl.loggers.CSVLogger("logs", name="my_exp_name"),
+        logger=loggers.TensorBoardLogger('logs', name=args.exp_name), #pl.loggers.CSVLogger("logs", name=args.exp_name),
         callbacks=[
             pl.callbacks.LearningRateMonitor(logging_interval='step'),
             #pl.callbacks.DeviceStatsMonitor(),
@@ -140,6 +144,6 @@ if __name__ == "__main__":
     parser.add_argument('--devices', help='device count', type=int, default=1)
     parser.add_argument('--strategy', help='distribution strategy', default='ddp')
     parser.add_argument('--data_workers', help='number of DataLoader workers', type=int, default=0)
-    
+    parser.add_argument('--exp_name', help='experiment name', default='my_exp_name')
     args = parser.parse_args()
     main(args)
