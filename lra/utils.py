@@ -39,8 +39,8 @@ class TFDatasetWrapper(torch.utils.data.Dataset):
 
 #DataLoader adds an additional batch dimension, which the original dataset already handles
 #However, the shuffling will occur only between batches, not across the whole dataset
-def wrap_lra_tf_dataset(tf_dataset, verbose=True):
-    return torch.utils.data.DataLoader(TFDatasetWrapper(tf_dataset, verbose), collate_fn=lambda x: x[0])
+def wrap_lra_tf_dataset(tf_dataset, verbose=True, num_workers=0):
+    return torch.utils.data.DataLoader(TFDatasetWrapper(tf_dataset, verbose), collate_fn=lambda x: x[0], pin_memory=True, num_workers=num_workers)
     
 class PBar(pl.callbacks.TQDMProgressBar):
     def init_validation_tqdm(self):

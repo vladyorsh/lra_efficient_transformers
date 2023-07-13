@@ -138,6 +138,7 @@ if __name__ == "__main__":
     parser.add_argument('--accelerator', help='device type to be used', default='gpu')
     parser.add_argument('--devices', help='device count', type=int, default=1)
     parser.add_argument('--strategy', help='distribution strategy', default='ddp')
+    parser.add_argument('--data_workers', help='number of DataLoader workers', type=int, default=0)
     
     args = parser.parse_args()
     main(args)
