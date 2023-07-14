@@ -212,7 +212,7 @@ class LraLightningWrapper(pl.LightningModule):
         if len(artifact.shape) < 2:
             artifact = artifact.unsqueeze(0)
         if artifact.shape[0] < 10 * artifact.shape[1]:
-            aspect_ratio = max(1, math.round(artifact.shape[1] / artifact.shape[0] / 2))
+            aspect_ratio = max(1, round(artifact.shape[1] / artifact.shape[0] / 2))
             artifact = artifact.repeat_interleave(aspect_ratio, dim=0)
         return artifact
     
