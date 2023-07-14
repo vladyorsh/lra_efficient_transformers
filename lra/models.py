@@ -266,7 +266,7 @@ class LraLightningWrapper(pl.LightningModule):
         #Non-scalar
         if self.log_non_scalars:
             if self.log_params:
-                self.log_self(artifacts, types='tensor_slice')
+                self.log_self(artifacts, types=('tensor_slice', 'hist'))
             self.log_artifacts(artifacts)
                     
         
