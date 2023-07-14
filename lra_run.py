@@ -105,7 +105,7 @@ def main(args):
     #Parse the training strategy and determine the sizes of sampled batches
     sampled_batch_size, accumulation_steps, strategy = get_batch_size_and_acc_steps(setup['full_batch_size'], args.batch_size, args.devices, args.strategy)
     train_dataset, valid_dataset, test_dataset, encoder = get_lra_data(args.lib_path, args.data_path, args.task, sampled_batch_size, args.max_length)
-    train_dataset, valid_dataset, test_dataset = wrap_lra_tf_dataset(train_dataset), wrap_lra_tf_dataset(valid_dataset), wrap_lra_tf_dataset(test_dataset)
+    train_dataset, valid_dataset, test_dataset = wrap_lra_tf_dataset(train_dataset, num_workers=args.data_workers), wrap_lra_tf_dataset(valid_dataset, num_workers=args.data_workers), wrap_lra_tf_dataset(test_dataset, num_workers=args.data_workers)
     
     model = get_model(args.task, args.max_length, setup, args.model, encoder, args.log_non_scalars, args.logging_frequency)
     trainer = pl.Trainer(
