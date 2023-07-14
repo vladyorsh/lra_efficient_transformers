@@ -71,7 +71,7 @@ def get_model(task, length, setup, model, encoder, log_non_scalars, logging_freq
             output_dropout_rate=setup['output_dropout_rate'],
             affine=setup['affine'],
             logging_frequency=logging_frequency,
-            log_params=args.log_model_params,
+            log_params=log_params,
         ),
         reg_weight=1.0,
         betas=(0.9, 0.999), #Original LRA uses 0.98, but may yield quite unsatisfying results
