@@ -204,7 +204,18 @@ class LraLightningWrapper(pl.LightningModule):
                         for t in type: self.log_artifact(artifact, t, name)
                     else:
                         self.log_artifact(artifact, type, name)
-        
+    
+    def prepare_tensor_for_viz(self, artifact):
+        artifact = artifact.detach()
+        if len(artifact.shape) > 2:
+            artifact = artifact[0]
+        if len(artifact.shape) < 2:
+            artifact = artifact.unsqueeze(0)
+        if artifact.shape[0] < 10 * artifact.shape[1]:
+            aspect_ratio = max(1, math.round(artifact.shape[1] / artifact.shape[0] / 2))
+            artifact = artifact.repeat_interleave(aspect_ratio, dim=0)
+        return artifact
+                        
     def training_step(self, batch, batch_idx):
         inp, target = torch.from_numpy(batch['inputs']).to(self.device), torch.from_numpy(batch['targets']).to(self.device)
         preds, auxiliary_losses, artifacts = self.model(inp)
@@ -222,22 +233,12 @@ class LraLightningWrapper(pl.LightningModule):
                 for name, param in self.model.named_parameters():
                     if name not in log_params:
                         continue
-                    artifact = param.data
-                    if len(artifact.shape) > 2:
-                        artifact = artifact[0]
-                    if len(artifact.shape) < 2:
-                        artifact = artifact.unsqueeze(0)
-                        
+                    artifact = self.prepare_tensor_for_viz(param.data)
                     artifacts.append(
                         Artifact(artifact, name, ('tensor_slice', 'hist'), self.model.logging_frequency)
                     )
                     if param.grad is not None:
-                        artifact = param.grad
-                        if len(artifact.shape) > 2:
-                            artifact = artifact[0]
-                        if len(artifact.shape) < 2:
-                            artifact = artifact.unsqueeze(0)
-                        
+                        artifact = self.prepare_tensor_for_viz(param.grad)                        
                         artifacts.append(
                             Artifact(artifact, name + '_grad', ('tensor_slice', 'hist'), self.model.logging_frequency)
                         )
