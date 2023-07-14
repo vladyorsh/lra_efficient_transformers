@@ -210,7 +210,7 @@ class LraLightningWrapper(pl.LightningModule):
         
         #Non-scalar
         if self.log_non_scalars:
-            for name, param in self.model.named_parameters:
+            for name, param in self.model.named_parameters():
                 artifacts.append(
                     Artifact(param.data, name, ('tensor_slice', 'hist'), self.model.logging_frequency)
                 )
