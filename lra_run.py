@@ -46,7 +46,7 @@ def get_setup(task):
     setup = REGISTERED_SETUPS[task]
     return setup
         
-def get_model(task, length, setup, model, encoder, log_non_scalars, logging_frequency):
+def get_model(task, length, setup, model, encoder, log_non_scalars, logging_frequency, log_params):
     BASE_MODELS = { 'classification' : ClassificationTransformer, 'matching' : MatchingTransformer }
     LUNA_MODELS = { 'classification' : LunaClassifier,            'matching' : LunaMatcher }
     
@@ -71,6 +71,7 @@ def get_model(task, length, setup, model, encoder, log_non_scalars, logging_freq
             output_dropout_rate=setup['output_dropout_rate'],
             affine=setup['affine'],
             logging_frequency=logging_frequency,
+            log_params=args.log_model_params,
         ),
         reg_weight=1.0,
         betas=(0.9, 0.999), #Original LRA uses 0.98, but may yield quite unsatisfying results
@@ -110,7 +111,7 @@ def main(args):
     
     torch.set_float32_matmul_precision(args.matmul_precision)
     
-    model = get_model(args.task, args.max_length, setup, args.model, encoder, args.log_non_scalars, args.logging_frequency)
+    model = get_model(args.task, args.max_length, setup, args.model, encoder, args.log_non_scalars, args.logging_frequency, args.log_model_params)
     print(model)
     trainer = pl.Trainer(
         accelerator=args.accelerator,
@@ -164,7 +165,9 @@ if __name__ == "__main__":
     parser.add_argument('--exp_name', help='experiment name', default='my_exp_name')
     parser.add_argument('--log_non_scalars', help='log non-scalar artifacts, e.g. images', type=bool, default=True)
     parser.add_argument('--logging_frequency', help='log non-scalars every N steps', type=int, default=100)
-    parser.add_argument('--matmul_precision', help='torch matmul precision (medium | high | highest)', default='medium')
+    parser.add_argument('--matmul_precision', help='torch matmul precision ( medium | high | highest )', default='medium')
+    parser.add_argument('--log_params', help='log model parameter histograms and weight pictures', type=bool, default=False)
+    
     
     args = parser.parse_args()
     main(args)

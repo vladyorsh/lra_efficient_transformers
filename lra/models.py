@@ -117,7 +117,7 @@ class LossMetric(torchmetrics.Metric):
         return torch.mean(torch.Tensor(self.values))
     
 class LraLightningWrapper(pl.LightningModule):
-    def __init__(self, model, reg_weight=1.0, betas=(0.9, 0.98), base_lr=0.05, wd=0.1, schedule=lambda x: 1.0, log_non_scalars=True):
+    def __init__(self, model, reg_weight=1.0, betas=(0.9, 0.98), base_lr=0.05, wd=0.1, schedule=lambda x: 1.0, log_non_scalars=True, log_params=True):
         super().__init__()
         #self.automatic_optimization = False
         self.model = model
@@ -129,6 +129,7 @@ class LraLightningWrapper(pl.LightningModule):
         self.wd = wd
         self.schedule = schedule
         self.log_non_scalars = log_non_scalars
+        self.log_params = log_params
         
         #nn.ModuleDict is needed for correct handling of multi-device training
         self.train_metrics = nn.ModuleDict({
@@ -256,8 +257,8 @@ class LraLightningWrapper(pl.LightningModule):
         
         #Non-scalar
         if self.log_non_scalars:
-            #if not (self.trainer.global_step % self.model.logging_frequency):
-            #    self.log_self(artifacts, types='tensor_slice')
+            if self.log_params and not (self.trainer.global_step % self.model.logging_frequency):
+                self.log_self(artifacts, types='tensor_slice')
             self.log_artifacts(artifacts)
                     
         
