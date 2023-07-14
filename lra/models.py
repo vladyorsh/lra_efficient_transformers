@@ -155,15 +155,21 @@ class LraLightningWrapper(pl.LightningModule):
         name= type + '_' + name
         
         scale = 6
+        max_size = 16
         w, h = scale, scale
         
         if type == 'tensor_slice':
             if artifact.shape[0] > artifact.shape[1]:
                 w = scale
                 h = round(artifact.shape[0] / artifact.shape[1] * scale)
+                if h > max_size:
+                    h, w = max_size, w * max_size / h
             else:
                 h = scale
                 w = round(artifact.shape[1] / artifact.shape[0] * scale)
+                if w > max_size:
+                    h, w = h * max_size / w, max_size
+                    
             plt.figure(figsize=(w, h))
             plt.imshow(artifact)
             exp.add_figure(name, plt.gcf(), global_step=self.trainer.global_step, close=True)
@@ -211,12 +217,19 @@ class LraLightningWrapper(pl.LightningModule):
         #Non-scalar
         if self.log_non_scalars:
             for name, param in self.model.named_parameters():
+                artifact = param.data
+                if len(param.shape) > 3:
+                    artifact = param.data[0]
+                    
                 artifacts.append(
-                    Artifact(param.data, name, ('tensor_slice', 'hist'), self.model.logging_frequency)
+                    Artifact(artifact, name, ('tensor_slice', 'hist'), self.model.logging_frequency)
                 )
                 if param.grad is not None:
+                    artifact = param.grad
+                    if len(artifact.shape) > 3:
+                        artifact = artifact[0]
                     artifacts.append(
-                        Artifact(param.grad, name + '_grad', ('tensor_slice', 'hist'), self.model.logging_frequency)
+                        Artifact(artifact, name + '_grad', ('tensor_slice', 'hist'), self.model.logging_frequency)
                     )
             self.log_artifacts(artifacts)
                     
