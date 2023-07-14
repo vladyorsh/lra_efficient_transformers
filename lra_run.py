@@ -5,6 +5,7 @@ from lra.utils  import *
 import sys
 import os
 import argparse
+import torch
 
 #TODO:
 #Check the static graph option
@@ -107,6 +108,8 @@ def main(args):
     train_dataset, valid_dataset, test_dataset, encoder = get_lra_data(args.lib_path, args.data_path, args.task, sampled_batch_size, args.max_length)
     train_dataset, valid_dataset, test_dataset = wrap_lra_tf_dataset(train_dataset, num_workers=args.data_workers), wrap_lra_tf_dataset(valid_dataset, num_workers=args.data_workers), wrap_lra_tf_dataset(test_dataset, num_workers=args.data_workers)
     
+    torch.set_float32_matmul_precision(args.matmul_precision)
+    
     model = get_model(args.task, args.max_length, setup, args.model, encoder, args.log_non_scalars, args.logging_frequency)
     print(model)
     trainer = pl.Trainer(
@@ -161,6 +164,7 @@ if __name__ == "__main__":
     parser.add_argument('--exp_name', help='experiment name', default='my_exp_name')
     parser.add_argument('--log_non_scalars', help='log non-scalar artifacts, e.g. images', type=bool, default=True)
     parser.add_argument('--logging_frequency', help='log non-scalars every N steps', type=int, default=100)
+    parser.add_argument('--matmul_precision', help='torch matmul precision (medium | high | highest)', default='medium')
     
     args = parser.parse_args()
     main(args)
