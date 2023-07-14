@@ -222,14 +222,22 @@ class LraLightningWrapper(pl.LightningModule):
         'classifier.output.weight',
         'classifier.output.bias',
         'embed_layer.embedding.weight',
-        'encoder.blocks.0.attention.q',
-        'encoder.blocks.0.attention.k',
-        'encoder.blocks.0.attention.v',
-        'encoder.blocks.0.attention.lin',
-        'encoder.blocks.3.attention.q',
-        'encoder.blocks.3.attention.k',
-        'encoder.blocks.3.attention.v',
-        'encoder.blocks.3.attention.lin',
+        'encoder.blocks.0.attention.q.weight',
+        'encoder.blocks.0.attention.k.weight',
+        'encoder.blocks.0.attention.v.weight',
+        'encoder.blocks.0.attention.lin.weight',
+        'encoder.blocks.3.attention.q.weight',
+        'encoder.blocks.3.attention.k.weight',
+        'encoder.blocks.3.attention.v.weight',
+        'encoder.blocks.3.attention.lin.weight',
+        'encoder.blocks.0.attention.q.bias',
+        'encoder.blocks.0.attention.k.bias',
+        'encoder.blocks.0.attention.v.bias',
+        'encoder.blocks.0.attention.lin.bias',
+        'encoder.blocks.3.attention.q.bias',
+        'encoder.blocks.3.attention.k.bias',
+        'encoder.blocks.3.attention.v.bias',
+        'encoder.blocks.3.attention.lin.bias',
         ]
         
     
@@ -257,7 +265,7 @@ class LraLightningWrapper(pl.LightningModule):
         
         #Non-scalar
         if self.log_non_scalars:
-            if self.log_params and not (self.trainer.global_step % self.model.logging_frequency):
+            if self.log_params:
                 self.log_self(artifacts, types='tensor_slice')
             self.log_artifacts(artifacts)
                     
