@@ -217,33 +217,8 @@ class LraLightningWrapper(pl.LightningModule):
             artifact = artifact.repeat_interleave(aspect_ratio, dim=0)
         return artifact
     
-    def log_self(self, artifacts, types=('tensor_slive', 'hist')):
-        log_params = [
-        'classifier.output.weight',
-        'classifier.output.bias',
-        'embed_layer.embedding.weight',
-        'encoder.blocks.0.attention.q.weight',
-        'encoder.blocks.0.attention.k.weight',
-        'encoder.blocks.0.attention.v.weight',
-        'encoder.blocks.0.attention.lin.weight',
-        'encoder.blocks.3.attention.q.weight',
-        'encoder.blocks.3.attention.k.weight',
-        'encoder.blocks.3.attention.v.weight',
-        'encoder.blocks.3.attention.lin.weight',
-        'encoder.blocks.0.attention.q.bias',
-        'encoder.blocks.0.attention.k.bias',
-        'encoder.blocks.0.attention.v.bias',
-        'encoder.blocks.0.attention.lin.bias',
-        'encoder.blocks.3.attention.q.bias',
-        'encoder.blocks.3.attention.k.bias',
-        'encoder.blocks.3.attention.v.bias',
-        'encoder.blocks.3.attention.lin.bias',
-        ]
-        
-    
+    def log_self(self, artifacts, types=('tensor_slice', 'hist')):
         for name, param in self.model.named_parameters():
-            if name not in log_params:
-                continue
             artifact = self.prepare_tensor_for_viz(param.data)
             artifacts.append(
                 Artifact(artifact, name, types, self.model.logging_frequency)
@@ -266,7 +241,7 @@ class LraLightningWrapper(pl.LightningModule):
         #Non-scalar
         if self.log_non_scalars:
             if self.log_params:
-                self.log_self(artifacts, types=('tensor_slice', 'hist'))
+                self.log_self(artifacts, types='tensor_slice')
             self.log_artifacts(artifacts)
                     
         
@@ -297,7 +272,11 @@ class LraLightningWrapper(pl.LightningModule):
             metric.reset()
             
     def validation_step(self, batch, batch_idx):
-        inp, target = torch.from_numpy(batch['inputs']).to(self.device), torch.from_numpy(batch['targets']).to(self.device)
+        if 'inputs' in batch.values():
+            inp = torch.from_numpy(batch['inputs']).to(self.device)
+        else:
+            inp = (torch.from_numpy(batch['inputs_1']), torch.from_numpy(batch['inputs_2'])
+        target = torch.from_numpy(batch['targets']).to(self.device)
         preds, auxiliary_losses, _ = self.model(inp)
         
         auxiliary_losses = torch.mean(auxiliary_losses) if auxiliary_losses else torch.tensor(0.0)
