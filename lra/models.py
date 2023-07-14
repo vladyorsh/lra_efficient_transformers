@@ -218,8 +218,8 @@ class LraLightningWrapper(pl.LightningModule):
         if self.log_non_scalars:
             for name, param in self.model.named_parameters():
                 artifact = param.data
-                if len(param.shape) > 3:
-                    artifact = param.data[0]
+                if len(artifact.shape) > 3:
+                    artifact = artifact[0]
                     
                 artifacts.append(
                     Artifact(artifact, name, ('tensor_slice', 'hist'), self.model.logging_frequency)
@@ -228,6 +228,7 @@ class LraLightningWrapper(pl.LightningModule):
                     artifact = param.grad
                     if len(artifact.shape) > 3:
                         artifact = artifact[0]
+                    
                     artifacts.append(
                         Artifact(artifact, name + '_grad', ('tensor_slice', 'hist'), self.model.logging_frequency)
                     )
