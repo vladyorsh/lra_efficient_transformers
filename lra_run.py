@@ -127,6 +127,9 @@ def main(args):
             
             #Early stopping
             pl.callbacks.EarlyStopping('val_accuracy', min_delta=-0.01, patience=setup['patience'], verbose=True, mode='max', check_on_train_epoch_end=False),
+            
+            #Checkpointing
+            pl.callbacks.ModelCheckpoint(monitor='val_accuracy', verbose=True, save_weights_only=False, mode='max', auto_insert_metric_name=True, every_n_train_steps=setup['eval_period'])
         ],
         max_steps=setup['steps'],
         check_val_every_n_epoch=None,
@@ -137,6 +140,7 @@ def main(args):
         barebones=False,
     )
     trainer.fit(model, train_dataloaders=train_dataset, val_dataloaders=valid_dataset)
+    trainer.test(model, dataloaders=test_dataset, ckpt_path='best', verbose=True)
 
 
     

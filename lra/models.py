@@ -216,26 +216,27 @@ class LraLightningWrapper(pl.LightningModule):
         
         #Non-scalar
         if self.log_non_scalars:
-            for name, param in self.model.named_parameters():
-                artifact = param.data
-                if len(artifact.shape) > 2:
-                    artifact = artifact[0]
-                if len(artifact.shape) < 2:
-                    artifact = artifact.unsqueeze(0)
-                    
-                artifacts.append(
-                    Artifact(artifact, name, ('tensor_slice', 'hist'), self.model.logging_frequency)
-                )
-                if param.grad is not None:
-                    artifact = param.grad
+            if not (self.trainer.global_step % self.model.logging_frequency):
+                for name, param in self.model.named_parameters():
+                    artifact = param.data
                     if len(artifact.shape) > 2:
                         artifact = artifact[0]
                     if len(artifact.shape) < 2:
                         artifact = artifact.unsqueeze(0)
-                    
+                        
                     artifacts.append(
-                        Artifact(artifact, name + '_grad', ('tensor_slice', 'hist'), self.model.logging_frequency)
+                        Artifact(artifact, name, 'tensor_slice', self.model.logging_frequency)
                     )
+                    if param.grad is not None:
+                        artifact = param.grad
+                        if len(artifact.shape) > 2:
+                            artifact = artifact[0]
+                        if len(artifact.shape) < 2:
+                            artifact = artifact.unsqueeze(0)
+                        
+                        artifacts.append(
+                            Artifact(artifact, name + '_grad', 'tensor_slice', self.model.logging_frequency)
+                        )
             self.log_artifacts(artifacts)
                     
         
