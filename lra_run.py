@@ -141,7 +141,7 @@ def main(args):
         barebones=False,
     )
     trainer.fit(model, train_dataloaders=train_dataset, val_dataloaders=valid_dataset)
-    trainer.test(model, dataloaders=test_dataset, ckpt_path='best', verbose=True)
+    trainer.test(model, dataloaders=test_dataset, ckpt_path='best', verbose=False)
 
 
     

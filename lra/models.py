@@ -215,6 +215,35 @@ class LraLightningWrapper(pl.LightningModule):
             aspect_ratio = max(1, math.round(artifact.shape[1] / artifact.shape[0] / 2))
             artifact = artifact.repeat_interleave(aspect_ratio, dim=0)
         return artifact
+    
+    def log_self(self, artifacts):
+        log_params = [
+        'classifier.output.weight',
+        'classifier.output.bias',
+        'embed_layer.embedding.weight',
+        'encoder.blocks.0.attention.q',
+        'encoder.blocks.0.attention.k',
+        'encoder.blocks.0.attention.v',
+        'encoder.blocks.0.attention.lin',
+        'encoder.blocks.3.attention.q',
+        'encoder.blocks.3.attention.k',
+        'encoder.blocks.3.attention.v',
+        'encoder.blocks.3.attention.lin',
+        ]
+        
+        if not (self.trainer.global_step % self.model.logging_frequency):
+            for name, param in self.model.named_parameters():
+                if name not in log_params:
+                    continue
+                artifact = self.prepare_tensor_for_viz(param.data)
+                artifacts.append(
+                    Artifact(artifact, name, ('tensor_slice', 'hist'), self.model.logging_frequency)
+                )
+                if param.grad is not None:
+                    artifact = self.prepare_tensor_for_viz(param.grad)                        
+                    artifacts.append(
+                        Artifact(artifact, name + '_grad', ('tensor_slice', 'hist'), self.model.logging_frequency)
+                    )
                         
     def training_step(self, batch, batch_idx):
         inp, target = torch.from_numpy(batch['inputs']).to(self.device), torch.from_numpy(batch['targets']).to(self.device)
@@ -227,21 +256,7 @@ class LraLightningWrapper(pl.LightningModule):
         
         #Non-scalar
         if self.log_non_scalars:
-            log_params = [ 'classifier.output.weight', 'classifier.output.bias' ]
-            
-            if not (self.trainer.global_step % self.model.logging_frequency):
-                for name, param in self.model.named_parameters():
-                    if name not in log_params:
-                        continue
-                    artifact = self.prepare_tensor_for_viz(param.data)
-                    artifacts.append(
-                        Artifact(artifact, name, ('tensor_slice', 'hist'), self.model.logging_frequency)
-                    )
-                    if param.grad is not None:
-                        artifact = self.prepare_tensor_for_viz(param.grad)                        
-                        artifacts.append(
-                            Artifact(artifact, name + '_grad', ('tensor_slice', 'hist'), self.model.logging_frequency)
-                        )
+            self.log_self(artifacts)
             self.log_artifacts(artifacts)
                     
         
