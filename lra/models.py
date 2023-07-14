@@ -218,7 +218,7 @@ class LraLightningWrapper(pl.LightningModule):
         if self.log_non_scalars:
             for name, param in self.model.named_parameters():
                 artifact = param.data
-                if len(artifact.shape) > 3:
+                if len(artifact.shape) > 2:
                     artifact = artifact[0]
                     
                 artifacts.append(
@@ -226,7 +226,7 @@ class LraLightningWrapper(pl.LightningModule):
                 )
                 if param.grad is not None:
                     artifact = param.grad
-                    if len(artifact.shape) > 3:
+                    if len(artifact.shape) > 2:
                         artifact = artifact[0]
                     
                     artifacts.append(
