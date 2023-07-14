@@ -231,19 +231,19 @@ class LraLightningWrapper(pl.LightningModule):
         'encoder.blocks.3.attention.lin',
         ]
         
-        if not (self.trainer.global_step % self.model.logging_frequency):
-            for name, param in self.model.named_parameters():
-                if name not in log_params:
-                    continue
-                artifact = self.prepare_tensor_for_viz(param.data)
+    
+        for name, param in self.model.named_parameters():
+            if name not in log_params:
+                continue
+            artifact = self.prepare_tensor_for_viz(param.data)
+            artifacts.append(
+                Artifact(artifact, name, ('tensor_slice', 'hist'), self.model.logging_frequency)
+            )
+            if param.grad is not None:
+                artifact = self.prepare_tensor_for_viz(param.grad)                        
                 artifacts.append(
-                    Artifact(artifact, name, ('tensor_slice', 'hist'), self.model.logging_frequency)
+                    Artifact(artifact, name + '_grad', ('tensor_slice', 'hist'), self.model.logging_frequency)
                 )
-                if param.grad is not None:
-                    artifact = self.prepare_tensor_for_viz(param.grad)                        
-                    artifacts.append(
-                        Artifact(artifact, name + '_grad', ('tensor_slice', 'hist'), self.model.logging_frequency)
-                    )
                         
     def training_step(self, batch, batch_idx):
         inp, target = torch.from_numpy(batch['inputs']).to(self.device), torch.from_numpy(batch['targets']).to(self.device)
@@ -256,7 +256,8 @@ class LraLightningWrapper(pl.LightningModule):
         
         #Non-scalar
         if self.log_non_scalars:
-            self.log_self(artifacts)
+            #if not (self.trainer.global_step % self.model.logging_frequency):
+            #    self.log_self(artifacts)
             self.log_artifacts(artifacts)
                     
         
