@@ -155,7 +155,7 @@ if __name__ == "__main__":
     parser.add_argument('--data_workers', help='number of DataLoader workers', type=int, default=0)
     parser.add_argument('--exp_name', help='experiment name', default='my_exp_name')
     parser.add_argument('--log_non_scalars', help='log non-scalar artifacts, e.g. images', type=bool, default=True)
-    parser.add_argument('--logging_frequency', help='log non-scalars every N steps', type=int, default=1000)
+    parser.add_argument('--logging_frequency', help='log non-scalars every N steps', type=int, default=100)
     
     args = parser.parse_args()
     main(args)

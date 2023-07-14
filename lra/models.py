@@ -26,6 +26,7 @@ class ClassificationTransformer(nn.Module):
     self.embed_layer = TEmbedding(num_embeddings, hidden_dim, seq_len)
     self.encoder     = Encoder(TBlock, num_blocks, hidden_dim, qkv_dim, mlp_dim, num_heads, internal_dropout_rate, affine, logging_frequency)
     self.classifier  = TClassifier(classes, hidden_dim, mlp_dim, output_dropout_rate, affine)
+    self.logging_frequency = logging_frequency
 
   def forward(self, pixel_values):
     additional_losses = []
@@ -153,9 +154,17 @@ class LraLightningWrapper(pl.LightningModule):
         exp = self.logger.experiment
         name= type + '_' + name
         
-        scale = 8
+        scale = 6
+        w, h = scale, scale
         
         if type == 'tensor_slice':
+            if artifact.shape[0] > artifact.shape[1]:
+                w = scale
+                h = round(artifact.shape[0] / artifact.shape[1] * scale)
+            else:
+                h = scale
+                w = round(artifact.shape[1] / artifact.shape[0] * scale)
+            plt.figure(figsize=(w, h))
             plt.imshow(artifact)
             exp.add_figure(name, plt.gcf(), global_step=self.trainer.global_step, close=True)
         elif type == 'tensor_stack':
@@ -198,9 +207,21 @@ class LraLightningWrapper(pl.LightningModule):
         loss = self.loss(preds, target)
         
         #Logging
-        if self.log_non_scalars:
-            self.log_artifacts(artifacts)
         
+        #Non-scalar
+        if self.log_non_scalars:
+            for name, param in self.model.named_parameters:
+                artifacts.append(
+                    Artifact(param, name, ('tensor_slice', 'hist'), self.model.logging_frequency)
+                )
+                if param.grad is not None:
+                    artifacts.append(
+                        Artifact(param.grad, name + '_grad', ('tensor_slice', 'hist'), self.model.logging_frequency)
+                    )
+            self.log_artifacts(artifacts)
+                    
+        
+        #Metrics
         self.train_metrics['loss'](loss)
         self.train_metrics['reg_loss'](auxiliary_losses)
         
