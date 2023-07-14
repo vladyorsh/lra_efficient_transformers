@@ -216,8 +216,12 @@ class LraLightningWrapper(pl.LightningModule):
         
         #Non-scalar
         if self.log_non_scalars:
+            log_params = [ 'classifier.output.weight', 'classifier.output.bias' ]
+            
             if not (self.trainer.global_step % self.model.logging_frequency):
                 for name, param in self.model.named_parameters():
+                    if name not in log_params:
+                        continue
                     artifact = param.data
                     if len(artifact.shape) > 2:
                         artifact = artifact[0]

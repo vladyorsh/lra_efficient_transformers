@@ -108,6 +108,7 @@ def main(args):
     train_dataset, valid_dataset, test_dataset = wrap_lra_tf_dataset(train_dataset, num_workers=args.data_workers), wrap_lra_tf_dataset(valid_dataset, num_workers=args.data_workers), wrap_lra_tf_dataset(test_dataset, num_workers=args.data_workers)
     
     model = get_model(args.task, args.max_length, setup, args.model, encoder, args.log_non_scalars, args.logging_frequency)
+    print(model)
     trainer = pl.Trainer(
         accelerator=args.accelerator,
         strategy=strategy,
