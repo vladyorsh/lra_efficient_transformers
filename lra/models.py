@@ -229,7 +229,7 @@ class LraLightningWrapper(pl.LightningModule):
                         artifact = artifact.unsqueeze(0)
                         
                     artifacts.append(
-                        Artifact(artifact, name, 'tensor_slice', self.model.logging_frequency)
+                        Artifact(artifact, name, ('tensor_slice', 'hist'), self.model.logging_frequency)
                     )
                     if param.grad is not None:
                         artifact = param.grad
@@ -239,7 +239,7 @@ class LraLightningWrapper(pl.LightningModule):
                             artifact = artifact.unsqueeze(0)
                         
                         artifacts.append(
-                            Artifact(artifact, name + '_grad', 'tensor_slice', self.model.logging_frequency)
+                            Artifact(artifact, name + '_grad', ('tensor_slice', 'hist'), self.model.logging_frequency)
                         )
             self.log_artifacts(artifacts)
                     
