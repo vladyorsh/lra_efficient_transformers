@@ -88,7 +88,7 @@ def get_batch_size_and_acc_steps(effective_batch_size, per_device_batch_size, de
         raise ValueError('The SETUP BATCH SIZE is not divisible by the DEVICE COUNT for the chosen strategy!')
     if strategy == 'ddp': #Other strategies may split the batch automatically between devices (be careful!)
         sampled_batch_size = per_device_batch_size * devices
-        strategy = pl.strategiesDDPStrategy(parallel_devices=devices, static_graph=True)
+        strategy = pl.strategies.DDPStrategy(parallel_devices=devices, static_graph=True)
     else: #For ddp we sample a full batch
         sampled_batch_size = per_device_batch_size
     if effective_batch_size % sampled_batch_size:
