@@ -45,7 +45,7 @@ def get_setup(task):
     setup = REGISTERED_SETUPS[task]
     return setup
         
-def get_model(args, encoder):
+def get_model(args, encoder, setup):
     BASE_MODELS = { 'classification' : ClassificationTransformer, 'matching' : MatchingTransformer }
     LUNA_MODELS = { 'classification' : LunaClassifier,            'matching' : LunaMatcher }
     
@@ -107,9 +107,9 @@ def main(args):
     train_dataset, valid_dataset, test_dataset = wrap_lra_tf_dataset(train_dataset, num_workers=args.data_workers), wrap_lra_tf_dataset(valid_dataset, num_workers=args.data_workers), wrap_lra_tf_dataset(test_dataset, num_workers=args.data_workers)
     
     torch.set_float32_matmul_precision(args.matmul_precision)
-    
-    model = get_model(args, encoder)
+    model = get_model(args, encoder, setup)
     print(model)
+    
     trainer = pl.Trainer(
         accelerator=args.accelerator,
         strategy=strategy,
