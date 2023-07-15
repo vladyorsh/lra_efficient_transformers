@@ -232,7 +232,10 @@ class LraLightningWrapper(pl.LightningModule):
                 )
                         
     def training_step(self, batch, batch_idx):
-        inp, target = torch.from_numpy(batch['inputs']).to(self.device), torch.from_numpy(batch['targets']).to(self.device)
+        if 'inputs' in batch.values():
+            inp = torch.from_numpy(batch['inputs']).to(self.device)
+        else:
+            inp = (torch.from_numpy(batch['inputs_1'], torch.from_numpy(batch['inputs_2']))
         preds, auxiliary_losses, artifacts = self.model(inp)
         
         auxiliary_losses = torch.mean(auxiliary_losses) if auxiliary_losses else torch.tensor(0.0)
@@ -277,7 +280,7 @@ class LraLightningWrapper(pl.LightningModule):
         if 'inputs' in batch.values():
             inp = torch.from_numpy(batch['inputs']).to(self.device)
         else:
-            inp = (torch.from_numpy(batch['inputs_1']), torch.from_numpy(batch['inputs_2'])
+            inp = (torch.from_numpy(batch['inputs_1'], torch.from_numpy(batch['inputs_2']))
         target = torch.from_numpy(batch['targets']).to(self.device)
         preds, auxiliary_losses, _ = self.model(inp)
         
@@ -310,7 +313,10 @@ class LraLightningWrapper(pl.LightningModule):
             metric.reset()
             
     def test_step(self, batch, batch_idx):
-        inp, target = torch.from_numpy(batch['inputs']).to(self.device), torch.from_numpy(batch['targets']).to(self.device)
+        if 'inputs' in batch.values():
+            inp = torch.from_numpy(batch['inputs']).to(self.device)
+        else:
+            inp = (torch.from_numpy(batch['inputs_1'], torch.from_numpy(batch['inputs_2']))
         preds, auxiliary_losses, _ = self.model(inp)
         
         auxiliary_losses = torch.mean(auxiliary_losses) if auxiliary_losses else torch.tensor(0.0)
