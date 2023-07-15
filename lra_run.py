@@ -55,7 +55,7 @@ def get_model(args, encoder):
     }
     
     task = 'classification' if args.task in { 'classification', 'listops' } else 'matching'
-    model_class = REGISTERED_MODELS[model][task]
+    model_class = REGISTERED_MODELS[args.model][task]
     model = LraLightningWrapper(
         model_class(
             classes=setup['classes'],
@@ -82,12 +82,13 @@ def get_model(args, encoder):
     
     return model
     
-def get_batch_size_and_acc_steps(effective_batch_size, per_device_batch_size, devices, strategy):
+def get_batch_size_and_acc_steps(effective_batch_size, per_device_batch_size, devices, accelerator, strategy):
     
     if effective_batch_size % devices:
         raise ValueError('The SETUP BATCH SIZE is not divisible by the DEVICE COUNT for the chosen strategy!')
-    if 'ddp' not in strategy: #Other strategies may split the batch automatically between devices (be careful!)
+    if strategy == 'ddp': #Other strategies may split the batch automatically between devices (be careful!)
         sampled_batch_size = per_device_batch_size * devices
+        strategy = DDPStrategy(parallel_devices=devices, static_graph=True)
     else: #For ddp we sample a full batch
         sampled_batch_size = per_device_batch_size
     if effective_batch_size % sampled_batch_size:
