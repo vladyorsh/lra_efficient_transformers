@@ -183,8 +183,7 @@ class LraLightningWrapper(pl.LightningModule):
                 nrows *= 2
             fig, ax = plt.subplots(figsize=(ncols * scale, nrows * scale), ncols=ncols, nrows=nrows)
             for axis, image in zip(ax, artifact):
-                axis.imshow(image)
-                plt.colorbar(ax=axis)
+                plt.colorbar(axis.imshow(image))
             exp.add_figure(name, fig, global_step=self.trainer.global_step, close=True)
             
         elif type == 'hist':
