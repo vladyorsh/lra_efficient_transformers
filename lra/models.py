@@ -9,7 +9,7 @@ class Encoder(nn.Module):
   def __init__(self, module_type, num_blocks, *args, **kwargs):
     super(Encoder, self).__init__()
     
-    self.blocks = nn.ModuleList([ module_type(* args, ** kwargs, is_last = (i == num_blocks - 1)) for i in range(num_blocks) ])
+    self.blocks = nn.ModuleList([ module_type(* args, ** kwargs) for _ in range(num_blocks) ])
     
   def forward(self, x, losses=[], artifacts=[]):
     for block in self.blocks:
