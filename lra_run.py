@@ -107,7 +107,7 @@ def main(args):
     
     torch.set_float32_matmul_precision(args.matmul_precision)
     
-    model = get_model(args.task, args.max_length, setup, args.model, encoder, args.log_non_scalars, args.logging_frequency, args.log_params)
+    model = get_model(args, encoder)
     print(model)
     trainer = pl.Trainer(
         accelerator=args.accelerator,
