@@ -81,10 +81,12 @@ class TAttention(nn.Module):
 
     return out, logits
 
+#is_last is needed for ddp for an easier removal of unused parameters (e.g. Luna LayerNorm for memory in the last block)
 class TBlock(nn.Module):
-  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine=False, logging_frequency=1000):
+  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine=False, logging_frequency=1000, is_last=False):
     super(TBlock, self).__init__()
     self.logging_frequency = logging_frequency
+    self.is_last = is_last
 
     self.hidden_dim = hidden_dim
     self.qkv_dim  = qkv_dim
@@ -101,7 +103,7 @@ class TBlock(nn.Module):
     )
 
 
-  def forward(self, input, losses=[], artifacts=[]):
+  def forward(self, input, losses=[], artifacts=[], is_last=False):
     x = self.layernorm_input(input)
     x, att = self.attention(x, losses=losses)
     
@@ -162,9 +164,10 @@ class DualClassifier(nn.Module):
     
     
 class LunaBlock(TBlock):
-  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full'):
-    super(LunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency)
-    self.layernorm_mem = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
+  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full', is_last=False):
+    super(LunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency, is_last)
+    if not self.is_last:
+        self.layernorm_mem = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
 
     if shared_att == 'full':
         self.attention_unpack = self.attention
@@ -187,7 +190,8 @@ class LunaBlock(TBlock):
     unpacked, unpacked_att = self.attention_unpack(input, packed, packed)
     
     q = self.layernorm_input(input + unpacked)
-    m = self.layernorm_mem(memory + packed)
+    if not self.is_last:
+        m = self.layernorm_mem(memory + packed)
 
     y = self.ffn(q)
     q = self.layernorm_inter(q + y)
