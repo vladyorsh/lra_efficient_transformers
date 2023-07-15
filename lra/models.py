@@ -232,7 +232,7 @@ class LraLightningWrapper(pl.LightningModule):
                 )
                         
     def training_step(self, batch, batch_idx):
-        if 'inputs' in batch.values():
+        if 'inputs' in batch.keys():
             inp = torch.from_numpy(batch['inputs']).to(self.device)
         else:
             inp = (torch.from_numpy(batch['inputs_1']), torch.from_numpy(batch['inputs_2']))
@@ -277,7 +277,7 @@ class LraLightningWrapper(pl.LightningModule):
             metric.reset()
             
     def validation_step(self, batch, batch_idx):
-        if 'inputs' in batch.values():
+        if 'inputs' in batch.keys():
             inp = torch.from_numpy(batch['inputs']).to(self.device)
         else:
             inp = (torch.from_numpy(batch['inputs_1']), torch.from_numpy(batch['inputs_2']))
@@ -313,7 +313,7 @@ class LraLightningWrapper(pl.LightningModule):
             metric.reset()
             
     def test_step(self, batch, batch_idx):
-        if 'inputs' in batch.values():
+        if 'inputs' in batch.keys():
             inp = torch.from_numpy(batch['inputs']).to(self.device)
         else:
             inp = (torch.from_numpy(batch['inputs_1']), torch.from_numpy(batch['inputs_2']))
