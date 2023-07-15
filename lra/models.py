@@ -241,9 +241,11 @@ class LraLightningWrapper(pl.LightningModule):
         return inp, target
         
     def on_after_backward(self):
+        artifacts = []
         if self.log_non_scalars:
             if self.log_params:
                 self.log_self_grads(artifacts, types=('tensor_slice', 'hist'))
+        self.log_artifacts(artifacts)
         
     def training_step(self, batch, batch_idx):
         inp, target = self.unpack_batch(batch)

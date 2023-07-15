@@ -11,7 +11,6 @@ import torch
 #Check the static graph option
 #Manage inputs without explicit keys
 #Model optional args
-#Pass and log other artifacts (memory footprint, attention images)
 #Use tfds API before making a Torch wrapper for better batching
 #----------
 #0.5 reg weight for matching
@@ -46,7 +45,7 @@ def get_setup(task):
     setup = REGISTERED_SETUPS[task]
     return setup
         
-def get_model(task, length, setup, model, encoder, log_non_scalars, logging_frequency, log_params):
+def get_model(args, encoder):
     BASE_MODELS = { 'classification' : ClassificationTransformer, 'matching' : MatchingTransformer }
     LUNA_MODELS = { 'classification' : LunaClassifier,            'matching' : LunaMatcher }
     
@@ -55,13 +54,13 @@ def get_model(task, length, setup, model, encoder, log_non_scalars, logging_freq
         'luna' : LUNA_MODELS,
     }
     
-    task = 'classification' if task in { 'classification', 'listops' } else 'matching'
+    task = 'classification' if args.task in { 'classification', 'listops' } else 'matching'
     model_class = REGISTERED_MODELS[model][task]
     model = LraLightningWrapper(
         model_class(
             classes=setup['classes'],
             num_embeddings=encoder.vocab_size,
-            seq_len=length,
+            seq_len=args.max_length,
             hidden_dim=setup['hidden_dim'],
             qkv_dim=setup['qkv_dim'],
             mlp_dim=setup['mlp_dim'],
@@ -70,15 +69,15 @@ def get_model(task, length, setup, model, encoder, log_non_scalars, logging_freq
             internal_dropout_rate=setup['internal_dropout_rate'],
             output_dropout_rate=setup['output_dropout_rate'],
             affine=setup['affine'],
-            logging_frequency=logging_frequency,
+            logging_frequency=args.logging_frequency,
         ),
         reg_weight=1.0,
         betas=(0.9, 0.999), #Original LRA uses 0.98, but may yield quite unsatisfying results
         base_lr=setup['lr'],
         wd=setup['weight_decay'],
         schedule=setup['schedule'](),
-        log_non_scalars=log_non_scalars,
-        log_params=log_params,
+        log_non_scalars=args.log_non_scalars,
+        log_params=args.log_params,
     )
     
     return model
@@ -164,7 +163,7 @@ if __name__ == "__main__":
     parser.add_argument('--logging_frequency', help='log non-scalars every N steps', type=int, default=100)
     parser.add_argument('--matmul_precision', help='torch matmul precision ( medium | high | highest )', default='highest')
     parser.add_argument('--log_params', help='log model parameter histograms and weight pictures', type=bool, default=False)
-    
+    parser.add_argument('--mem_size', help='memory size for models like Luna', type=int, default=256)
     
     args = parser.parse_args()
     main(args)
