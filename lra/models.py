@@ -236,6 +236,7 @@ class LraLightningWrapper(pl.LightningModule):
             inp = torch.from_numpy(batch['inputs']).to(self.device)
         else:
             inp = (torch.from_numpy(batch['inputs_1']), torch.from_numpy(batch['inputs_2']))
+        target = batch['targets']
         preds, auxiliary_losses, artifacts = self.model(inp)
         
         auxiliary_losses = torch.mean(auxiliary_losses) if auxiliary_losses else torch.tensor(0.0)
@@ -317,6 +318,7 @@ class LraLightningWrapper(pl.LightningModule):
             inp = torch.from_numpy(batch['inputs']).to(self.device)
         else:
             inp = (torch.from_numpy(batch['inputs_1']), torch.from_numpy(batch['inputs_2']))
+        target = batch['targets']
         preds, auxiliary_losses, _ = self.model(inp)
         
         auxiliary_losses = torch.mean(auxiliary_losses) if auxiliary_losses else torch.tensor(0.0)
