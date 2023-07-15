@@ -132,7 +132,7 @@ def main(args):
             pl.callbacks.EarlyStopping('val_accuracy', min_delta=-0.01, patience=setup['patience'], verbose=True, mode='max', check_on_train_epoch_end=False),
             
             #Checkpointing
-            pl.callbacks.ModelCheckpoint(monitor='val_accuracy', verbose=True, save_weights_only=False, mode='max', auto_insert_metric_name=True, every_n_train_steps=setup['eval_period'])
+            pl.callbacks.ModelCheckpoint(monitor='val_accuracy', verbose=True, save_weights_only=False, mode='max', auto_insert_metric_name=True, every_n_train_steps=setup['eval_period'], save_on_train_epoch_end=False)
         ],
         max_steps=setup['steps'],
         check_val_every_n_epoch=None,
