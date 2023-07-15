@@ -192,6 +192,8 @@ class LunaBlock(TBlock):
     q = self.layernorm_input(input + unpacked)
     if not self.is_last:
         m = self.layernorm_mem(memory + packed)
+    else:
+        m = memory
 
     y = self.ffn(q)
     q = self.layernorm_inter(q + y)
