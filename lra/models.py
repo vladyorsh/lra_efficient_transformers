@@ -217,12 +217,15 @@ class LraLightningWrapper(pl.LightningModule):
             artifact = artifact.repeat_interleave(aspect_ratio, dim=0)
         return artifact
     
-    def log_self(self, artifacts, types=('tensor_slice', 'hist')):
+    def log_self_params(self, artifacts, types=('tensor_slice', 'hist')):
         for name, param in self.model.named_parameters():
             artifact = self.prepare_tensor_for_viz(param.data)
             artifacts.append(
                 Artifact(artifact, name, types, self.model.logging_frequency)
             )
+                
+    def log_self_grads(self, artifacts, types=('tensor_slice', 'hist')):
+        for name, param in self.model.named_parameters():
             if param.grad is not None:
                 artifact = self.prepare_tensor_for_viz(param.grad)                        
                 artifacts.append(
@@ -237,6 +240,11 @@ class LraLightningWrapper(pl.LightningModule):
         target = torch.from_numpy(batch['targets']).to(self.device)
         return inp, target
         
+    def on_after_backward(self):
+        if self.log_non_scalars:
+            if self.log_params:
+                self.log_self_grads(artifacts, types=('tensor_slice', 'hist'))
+        
     def training_step(self, batch, batch_idx):
         inp, target = self.unpack_batch(batch)
         preds, auxiliary_losses, artifacts = self.model(inp)
@@ -249,7 +257,7 @@ class LraLightningWrapper(pl.LightningModule):
         #Non-scalar
         if self.log_non_scalars:
             if self.log_params:
-                self.log_self(artifacts, types=('tensor_slice', 'hist'))
+                self.log_self_params(artifacts, types=('tensor_slice', 'hist'))
             self.log_artifacts(artifacts)
                     
         
