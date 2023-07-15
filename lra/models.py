@@ -230,13 +230,17 @@ class LraLightningWrapper(pl.LightningModule):
                 artifacts.append(
                     Artifact(artifact, name + '_grad', types, self.model.logging_frequency)
                 )
-                        
-    def training_step(self, batch, batch_idx):
+    
+    def unpack_batch(self, batch):
         if 'inputs' in batch.keys():
             inp = torch.from_numpy(batch['inputs']).to(self.device)
         else:
-            inp = (torch.from_numpy(batch['inputs_1']), torch.from_numpy(batch['inputs_2']))
-        target = batch['targets']
+            inp = (torch.from_numpy(batch['inputs_1']).to(self.device), torch.from_numpy(batch['inputs_2'])).to(self.device)
+        target = torch.from_numpy(batch['targets']).to(self.device)
+        return inp, target
+        
+    def training_step(self, batch, batch_idx):
+        inp, target = self.unpack_batch(batch)
         preds, auxiliary_losses, artifacts = self.model(inp)
         
         auxiliary_losses = torch.mean(auxiliary_losses) if auxiliary_losses else torch.tensor(0.0)
@@ -278,11 +282,7 @@ class LraLightningWrapper(pl.LightningModule):
             metric.reset()
             
     def validation_step(self, batch, batch_idx):
-        if 'inputs' in batch.keys():
-            inp = torch.from_numpy(batch['inputs']).to(self.device)
-        else:
-            inp = (torch.from_numpy(batch['inputs_1']), torch.from_numpy(batch['inputs_2']))
-        target = torch.from_numpy(batch['targets']).to(self.device)
+        inp, target = self.unpack_batch(batch)
         preds, auxiliary_losses, _ = self.model(inp)
         
         auxiliary_losses = torch.mean(auxiliary_losses) if auxiliary_losses else torch.tensor(0.0)
@@ -314,11 +314,7 @@ class LraLightningWrapper(pl.LightningModule):
             metric.reset()
             
     def test_step(self, batch, batch_idx):
-        if 'inputs' in batch.keys():
-            inp = torch.from_numpy(batch['inputs']).to(self.device)
-        else:
-            inp = (torch.from_numpy(batch['inputs_1']), torch.from_numpy(batch['inputs_2']))
-        target = batch['targets']
+        inp, target = self.unpack_batch(batch)
         preds, auxiliary_losses, _ = self.model(inp)
         
         auxiliary_losses = torch.mean(auxiliary_losses) if auxiliary_losses else torch.tensor(0.0)
