@@ -84,8 +84,6 @@ def get_model(task, length, setup, model, encoder, log_non_scalars, logging_freq
     return model
     
 def get_batch_size_and_acc_steps(effective_batch_size, per_device_batch_size, devices, strategy):
-    if strategy not in ALLOWED_STRATEGIES:
-        raise ValueError(f'{strategy} strategy is disabled for safety reasons, use strategy from {ALLOWED_STRATEGIES} instead!')
     
     if effective_batch_size % devices:
         raise ValueError('The SETUP BATCH SIZE is not divisible by the DEVICE COUNT for the chosen strategy!')
