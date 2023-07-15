@@ -86,15 +86,16 @@ def get_batch_size_and_acc_steps(effective_batch_size, per_device_batch_size, de
     
     if effective_batch_size % devices:
         raise ValueError('The SETUP BATCH SIZE is not divisible by the DEVICE COUNT for the chosen strategy!')
-    if strategy == 'ddp': #Other strategies may split the batch automatically between devices (be careful!)
+    if 'ddp' in strategy: #Other strategies may split the batch automatically between devices (be careful!)
         sampled_batch_size = per_device_batch_size * devices
-        strategy = pl.strategies.DDPStrategy(static_graph=True)
     else: #For ddp we sample a full batch
         sampled_batch_size = per_device_batch_size
     if effective_batch_size % sampled_batch_size:
         raise ValueError('The SETUP BATCH SIZE is not divisible by the EFFECTIVE ONE-PASS BATCH SIZE, try to select another per-device batch size!')
     if strategy == 'single':
         strategy = pl.strategies.SingleDeviceStrategy(device=0)
+    if strategy == 'ddp_static':
+        strategy = pl.strategies.DDPStrategy(static_graph=True)
     accumulation_steps = max(1, effective_batch_size // sampled_batch_size)
     return sampled_batch_size, accumulation_steps, strategy
 
