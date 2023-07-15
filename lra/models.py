@@ -173,6 +173,7 @@ class LraLightningWrapper(pl.LightningModule):
                     
             plt.figure(figsize=(w, h))
             plt.imshow(artifact)
+            plt.colorbar()
             exp.add_figure(name, plt.gcf(), global_step=self.trainer.global_step, close=True)
         elif type == 'tensor_stack':
             batch_size = artifact.shape[0]
@@ -184,6 +185,7 @@ class LraLightningWrapper(pl.LightningModule):
             fig, ax = plt.subplots(figsize=(ncols * scale, nrows * scale), ncols=ncols, nrows=nrows)
             for axis, image in zip(ax, artifact):
                 axis.imshow(image)
+            plt.colorbar()
             exp.add_figure(name, fig, global_step=self.trainer.global_step, close=True)
             
         elif type == 'hist':
@@ -241,7 +243,7 @@ class LraLightningWrapper(pl.LightningModule):
         #Non-scalar
         if self.log_non_scalars:
             if self.log_params:
-                self.log_self(artifacts, types='tensor_slice')
+                self.log_self(artifacts, types=('tensor_slice', 'hist'))
             self.log_artifacts(artifacts)
                     
         

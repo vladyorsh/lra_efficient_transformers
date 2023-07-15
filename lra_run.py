@@ -165,7 +165,7 @@ if __name__ == "__main__":
     parser.add_argument('--exp_name', help='experiment name', default='my_exp_name')
     parser.add_argument('--log_non_scalars', help='log non-scalar artifacts, e.g. images', type=bool, default=True)
     parser.add_argument('--logging_frequency', help='log non-scalars every N steps', type=int, default=100)
-    parser.add_argument('--matmul_precision', help='torch matmul precision ( medium | high | highest )', default='medium')
+    parser.add_argument('--matmul_precision', help='torch matmul precision ( medium | high | highest )', default='highest')
     parser.add_argument('--log_params', help='log model parameter histograms and weight pictures', type=bool, default=False)
     
     
