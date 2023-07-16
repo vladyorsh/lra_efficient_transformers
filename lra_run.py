@@ -149,6 +149,13 @@ def main(args):
 
     
 if __name__ == "__main__":
+    def bool_type(x):
+        if x.lower() == 'true':
+            return True
+        elif x.lower() == 'false':
+            return False
+        raise ValueError(f'Cannot parse {x} as bool!')
+        
     parser = argparse.ArgumentParser(description='Run LRA tasks with chosen models.')
     parser.add_argument('--task', help='LRA task to be run on')
     parser.add_argument('--max_length', type=int, help='max input length')
@@ -162,12 +169,12 @@ if __name__ == "__main__":
     parser.add_argument('--strategy', help='distribution strategy', default='ddp')
     parser.add_argument('--data_workers', help='number of DataLoader workers', type=int, default=0)
     parser.add_argument('--exp_name', help='experiment name', default='my_exp_name')
-    parser.add_argument('--log_non_scalars', help='log non-scalar artifacts, e.g. images', type=bool, default=True)
+    parser.add_argument('--log_non_scalars', help='log non-scalar artifacts, e.g. images', type=bool_type, default=True)
     parser.add_argument('--logging_frequency', help='log non-scalars every N steps', type=int, default=100)
     parser.add_argument('--matmul_precision', help='torch matmul precision ( medium | high | highest )', default='highest')
-    parser.add_argument('--log_params', help='log model parameter histograms and weight pictures', type=bool, default=False)
+    parser.add_argument('--log_params', help='log model parameter histograms and weight pictures', type=bool_type, default=False)
     parser.add_argument('--mem_size', help='memory size for models like Luna', type=int, default=256)
-    parser.add_argument('--mask_inputs', help='mask input [PAD] tokens', type=bool, default=False)
+    parser.add_argument('--mask_inputs', help='mask input [PAD] tokens', type=bool_type, default=False)
     
     args = parser.parse_args()
     main(args)
