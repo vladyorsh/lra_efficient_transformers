@@ -32,7 +32,7 @@ class ClassificationTransformer(nn.Module):
     additional_losses = []
     artifacts = []
 
-    x = self.embed_layer(inputs)
+    x, mask = self.embed_layer(inputs, mask)
     x = self.encoder(x, mask, losses=additional_losses, artifacts=artifacts)
     x = self.classifier(x, mask)
 
@@ -51,7 +51,7 @@ class LunaClassifier(ClassificationTransformer):
     losses = []
     artifacts = []
     
-    x      = self.embed_layer(inputs)
+    x, mask= self.embed_layer(inputs, mask)
     x, mem = self.encoder((x, mem), mask, losses, artifacts)
     x      = self.classifier(x, mask)
 
@@ -66,15 +66,15 @@ class MatchingTransformer(ClassificationTransformer):
     additional_losses = []
     artifacts_1 = []
     artifacts_2 = []
-
-    emb_1 = self.embed_layer(inputs[0])
-    emb_2 = self.embed_layer(inputs[1])
     
     if masks is not None:
         mask_1, mask_2 = masks
     else:
         mask_1, mask_2 = None, None
 
+    emb_1, mask_1 = self.embed_layer(inputs[0], mask_1)
+    emb_2, mask_2 = self.embed_layer(inputs[1], mask_2)
+    
     emb_1 = self.encoder(emb_1, mask_1, losses=additional_losses, artifacts=artifacts_1)
     emb_2 = self.encoder(emb_2, mask_2, losses=additional_losses, artifacts=artifacts_2)
     
@@ -95,13 +95,13 @@ class LunaMatcher(LunaClassifier):
     artifacts_1 = []
     artifacts_2 = []
     
-    emb_1 = self.embed_layer(inputs[0])
-    emb_2 = self.embed_layer(inputs[1])
-
     if masks is not None:
         mask_1, mask_2 = masks
     else:
         mask_1, mask_2 = None, None
+
+    emb_1, mask_1 = self.embed_layer(inputs[0], mask_1)
+    emb_2, mask_2 = self.embed_layer(inputs[1], mask_2)
     
     emb_1, mem_1 = self.encoder((emb_1, mem_1), mask_1, losses=additional_losses, artifacts=artifacts_1)
     emb_2, mem_2 = self.encoder((emb_2, mem_2), mask_2, losses=additional_losses, artifacts=artifacts_2)

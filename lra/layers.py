@@ -22,14 +22,17 @@ class TEmbedding(nn.Module):
     self.cls = nn.Parameter(torch.zeros(1, 1, self.hidden_dim))
     nn.init.xavier_uniform_(self.cls)
 
-  def forward(self, input):
+  def forward(self, input, mask=None):
     batch_size, seq_len = input.shape
     
     embed = self.embedding(input)
     embed = embed + self.pos_embeds
     embed = torch.cat([ self.cls.expand(batch_size, 1, -1), embed ], axis=1)
+    
+    if mask is not None:
+        mask = nn.functional.pad(mask, (1, 0), value=1.0)
 
-    return embed
+    return embed, mask
 
 class TAttention(nn.Module):
   def __init__(self, hidden_dim, qkv_dim, num_heads, dropout_rate, affine=False):
