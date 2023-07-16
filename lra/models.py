@@ -236,7 +236,7 @@ class LraLightningWrapper(pl.LightningModule):
         if 'inputs' in batch.keys():
             inp = torch.from_numpy(batch['inputs']).to(self.device)
         else:
-            inp = (torch.from_numpy(batch['input_1']).to(self.device), torch.from_numpy(batch['input_2'])).to(self.device)
+            inp = (torch.from_numpy(batch['inputs1']).to(self.device), torch.from_numpy(batch['inputs2'])).to(self.device)
         target = torch.from_numpy(batch['targets']).to(self.device)
         return inp, target
         
