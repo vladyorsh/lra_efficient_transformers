@@ -159,8 +159,6 @@ class DualClassifier(nn.Module):
 
     return logits
 
-    
-    
 class LunaBlock(TBlock):
   def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full'):
     super(LunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency)
@@ -202,3 +200,27 @@ class LunaBlock(TBlock):
 
     return q, m
 
+class MLunaBlock(LunaBlock):
+  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full'):
+    super(MLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency, shared_att)
+    
+  def forward(self, input, memory, losses=[], artifacts=[]):
+    
+    packed, packed_att = self.attention(memory, input, input)
+    unpacked, unpacked_att = self.attention_unpack(input, packed, packed)
+    
+    q = self.layernorm_input(input + unpacked)
+    m = self.layernorm_mem(memory + packed)
+
+    y = self.ffn(q)
+    q = self.layernorm_inter(q + y)
+    
+    artifacts.append( (
+    Artifact(packed[0], 'packed', ('tensor_slice', 'hist'), self.logging_frequency),
+    Artifact(unpacked[0], 'unpacked', ('tensor_slice', 'hist'), self.logging_frequency),
+    Artifact(packed_att[0], 'packed_att_logits', 'tensor_stack', self.logging_frequency),
+    Artifact(unpacked_att[0], 'unpacked_att_logits', 'tensor_stack', self.logging_frequency),
+    Artifact(memory[0], 'input_memory', ('tensor_slice', 'hist'), self.logging_frequency),
+    ) )
+
+    return q, m

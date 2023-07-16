@@ -82,7 +82,7 @@ class MatchingTransformer(ClassificationTransformer):
 class LunaMatcher(LunaClassifier):
   def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, logging_frequency=1000, mem_size=256):
     super(LunaMatcher, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, logging_frequency, mem_size)
-    self.classifier  = DualClassifier(classes, hidden_dim, affine)
+    self.classifier  = DualClassifier(classes, hidden_dim, mlp_dim, affine)
     
   def forward(self, inputs):
     mem_1, mem_2 = self.mem, self.mem
