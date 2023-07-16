@@ -78,6 +78,7 @@ def get_model(args, encoder, setup):
         schedule=setup['schedule'](),
         log_non_scalars=args.log_non_scalars,
         log_params=args.log_params,
+        mask_inputs=args.mask_inputs,
     )
     
     return model
@@ -166,6 +167,7 @@ if __name__ == "__main__":
     parser.add_argument('--matmul_precision', help='torch matmul precision ( medium | high | highest )', default='highest')
     parser.add_argument('--log_params', help='log model parameter histograms and weight pictures', type=bool, default=False)
     parser.add_argument('--mem_size', help='memory size for models like Luna', type=int, default=256)
+    parser.add_argument('--mask_inputs', help='mask input [PAD] tokens', type=bool, default=False)
     
     args = parser.parse_args()
     main(args)
