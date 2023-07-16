@@ -233,10 +233,13 @@ class LraLightningWrapper(pl.LightningModule):
                 )
     
     def unpack_batch(self, batch):
+        batch_size=None
         if 'inputs' in batch.keys():
             inp = torch.from_numpy(batch['inputs']).to(self.device)
+            batch_size = inp.shape[0]
         else:
             inp = (torch.from_numpy(batch['inputs1']).to(self.device), torch.from_numpy(batch['inputs2']).to(self.device))
+            batch_size = inp[0].shape[0]
         target = torch.from_numpy(batch['targets']).long().to(self.device)
         return inp, target
         
@@ -248,7 +251,7 @@ class LraLightningWrapper(pl.LightningModule):
         self.log_artifacts(artifacts)
         
     def training_step(self, batch, batch_idx):
-        inp, target = self.unpack_batch(batch)
+        inp, target, batch_size = self.unpack_batch(batch)
         preds, auxiliary_losses, artifacts = self.model(inp)
         
         auxiliary_losses = torch.mean(auxiliary_losses) if auxiliary_losses else torch.tensor(0.0)
@@ -290,7 +293,7 @@ class LraLightningWrapper(pl.LightningModule):
             metric.reset()
             
     def validation_step(self, batch, batch_idx):
-        inp, target = self.unpack_batch(batch)
+        inp, target, batch_size = self.unpack_batch(batch)
         preds, auxiliary_losses, _ = self.model(inp)
         
         auxiliary_losses = torch.mean(auxiliary_losses) if auxiliary_losses else torch.tensor(0.0)
@@ -300,13 +303,13 @@ class LraLightningWrapper(pl.LightningModule):
         self.test_metrics['loss'](loss)
         self.test_metrics['reg_loss'](auxiliary_losses)
             
-        self.log('val_loss', self.test_metrics['loss'], on_step=False, on_epoch=True, sync_dist=True, batch_size=inp.shape[0], prog_bar=True)
-        self.log('val_reg_loss', self.test_metrics['reg_loss'], on_step=False, on_epoch=True, sync_dist=True, batch_size=inp.shape[0], prog_bar=True)
+        self.log('val_loss', self.test_metrics['loss'], on_step=False, on_epoch=True, sync_dist=True, batch_size=batch_size, prog_bar=True)
+        self.log('val_reg_loss', self.test_metrics['reg_loss'], on_step=False, on_epoch=True, sync_dist=True, batch_size=batch_size, prog_bar=True)
         
         for name, metric in self.test_metrics.items():
             if name in { 'loss', 'reg_loss' }: continue
             metric(preds, target)
-            self.log('val_' + name, metric, on_step=False, on_epoch=True, sync_dist=True, batch_size=inp.shape[0], prog_bar=True)
+            self.log('val_' + name, metric, on_step=False, on_epoch=True, sync_dist=True, batch_size=batch_size, prog_bar=True)
         
         loss = loss + auxiliary_losses * self.reg_weight    
         
@@ -332,13 +335,13 @@ class LraLightningWrapper(pl.LightningModule):
         self.test_metrics['loss'](loss)
         self.test_metrics['reg_loss'](auxiliary_losses)
             
-        self.log('test_loss', self.test_metrics['loss'], on_step=False, on_epoch=True, sync_dist=True, batch_size=inp.shape[0], prog_bar=True)
-        self.log('test_reg_loss', self.test_metrics['reg_loss'], on_step=False, on_epoch=True, sync_dist=True, batch_size=inp.shape[0], prog_bar=True)
+        self.log('test_loss', self.test_metrics['loss'], on_step=False, on_epoch=True, sync_dist=True, batch_size=batch_size, prog_bar=True)
+        self.log('test_reg_loss', self.test_metrics['reg_loss'], on_step=False, on_epoch=True, sync_dist=True, batch_size=batch_size, prog_bar=True)
         
         for name, metric in self.test_metrics.items():
             if name in { 'loss', 'reg_loss' }: continue
             metric(preds, target)
-            self.log('test_' + name, metric, on_step=False, on_epoch=True, sync_dist=True, batch_size=inp.shape[0], prog_bar=True)
+            self.log('test_' + name, metric, on_step=False, on_epoch=True, sync_dist=True, batch_size=batch_size, prog_bar=True)
         
         loss = loss + auxiliary_losses * self.reg_weight    
         
