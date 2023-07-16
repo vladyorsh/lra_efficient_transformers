@@ -46,7 +46,7 @@ class LunaClassifier(ClassificationTransformer):
     self.mem         = nn.Parameter(torch.empty(1, mem_size, hidden_dim), requires_grad=True)
     nn.init.normal_(self.mem)
     
-  def forward(self, inputs):
+  def forward(self, inputs, mask):
     mem = self.mem
     losses = []
     artifacts = []
@@ -70,8 +70,8 @@ class MatchingTransformer(ClassificationTransformer):
     emb_1 = self.embed_layer(inputs[0])
     emb_2 = self.embed_layer(inputs[1])
     
-    if mask is not None:
-        mask_1, mask_2 = mask
+    if masks is not None:
+        mask_1, mask_2 = masks
     else:
         mask_1, mask_2 = None, None
 
@@ -89,7 +89,7 @@ class LunaMatcher(LunaClassifier):
     super(LunaMatcher, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, logging_frequency, mem_size)
     self.classifier  = DualClassifier(classes, hidden_dim, mlp_dim, affine)
     
-  def forward(self, inputs):
+  def forward(self, inputs, masks):
     mem_1, mem_2 = self.mem, self.mem
     additional_losses = []
     artifacts_1 = []
@@ -98,8 +98,8 @@ class LunaMatcher(LunaClassifier):
     emb_1 = self.embed_layer(inputs[0])
     emb_2 = self.embed_layer(inputs[1])
 
-    if mask is not None:
-        mask_1, mask_2 = mask
+    if masks is not None:
+        mask_1, mask_2 = masks
     else:
         mask_1, mask_2 = None, None
     
