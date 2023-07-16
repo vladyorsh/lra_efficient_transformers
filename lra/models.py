@@ -237,7 +237,7 @@ class LraLightningWrapper(pl.LightningModule):
             inp = torch.from_numpy(batch['inputs']).to(self.device)
         else:
             inp = (torch.from_numpy(batch['inputs1']).to(self.device), torch.from_numpy(batch['inputs2']).to(self.device))
-        target = torch.from_numpy(batch['targets']).to(self.device)
+        target = torch.from_numpy(batch['targets']).long().to(self.device)
         return inp, target
         
     def on_after_backward(self):
