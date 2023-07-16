@@ -68,7 +68,7 @@ def get_model(args, encoder, setup):
             num_blocks=setup['num_blocks'],
             internal_dropout_rate=setup['internal_dropout_rate'],
             output_dropout_rate=setup['output_dropout_rate'],
-            affine=setup['affine'],
+            affine=args.biases,
             logging_frequency=args.logging_frequency,
         ),
         reg_weight=1.0,
@@ -175,6 +175,6 @@ if __name__ == "__main__":
     parser.add_argument('--log_params', help='log model parameter histograms and weight pictures', type=bool_type, default=False)
     parser.add_argument('--mem_size', help='memory size for models like Luna', type=int, default=256)
     parser.add_argument('--mask_inputs', help='mask input [PAD] tokens', type=bool_type, default=False)
-    
+    parser.add_argument('--biases', help='enable biases and affine transforms', type=bool_type, default=True)
     args = parser.parse_args()
     main(args)

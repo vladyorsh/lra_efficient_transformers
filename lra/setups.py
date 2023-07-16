@@ -18,7 +18,6 @@ CLS_SETUP = {
     'output_units' : 1024,
     'internal_dropout_rate' : 0.1,
     'output_dropout_rate' : 0.0,
-    'affine' : True,
     
     'patience' : 15,
 }
@@ -41,7 +40,6 @@ LISTOPS_SETUP = {
     'output_units' : 2048,
     'internal_dropout_rate' : 0.1,
     'output_dropout_rate' : 0.0,
-    'affine' : True,
     
     'patience' : 150,
 }
@@ -65,7 +63,6 @@ MATCHING_SETUP = {
     'output_units' : 512,
     'internal_dropout_rate' : 0.1,
     'output_dropout_rate' : 0.0,
-    'affine' : True,
     
     'patience' : 15,
 }
