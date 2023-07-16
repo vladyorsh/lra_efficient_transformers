@@ -11,12 +11,12 @@ class Encoder(nn.Module):
     
     self.blocks = nn.ModuleList([ module_type(* args, ** kwargs) for _ in range(num_blocks) ])
     
-  def forward(self, x, losses=[], artifacts=[]):
+  def forward(self, x, mask=None, losses=[], artifacts=[]):
     for block in self.blocks:
         if torch.is_tensor(x):
-            x = block(x, losses=losses, artifacts=artifacts)
+            x = block(x, mask, losses=losses, artifacts=artifacts)
         else:
-            x = block(* x, losses=losses, artifacts=artifacts)
+            x = block(* x, mask, losses=losses, artifacts=artifacts)
     return x
 
 class ClassificationTransformer(nn.Module):
@@ -28,13 +28,13 @@ class ClassificationTransformer(nn.Module):
     self.classifier  = TClassifier(classes, hidden_dim, mlp_dim, output_dropout_rate, affine)
     self.logging_frequency = logging_frequency
 
-  def forward(self, pixel_values):
+  def forward(self, inputs, mask=None):
     additional_losses = []
     artifacts = []
 
-    x = self.embed_layer(pixel_values)
-    x = self.encoder(x, additional_losses, artifacts)
-    x = self.classifier(x)
+    x = self.embed_layer(inputs)
+    x = self.encoder(x, mask, losses=additional_losses, artifacts=artifacts)
+    x = self.classifier(x, mask)
 
     return x, additional_losses, artifacts
 
@@ -46,14 +46,14 @@ class LunaClassifier(ClassificationTransformer):
     self.mem         = nn.Parameter(torch.empty(1, mem_size, hidden_dim), requires_grad=True)
     nn.init.normal_(self.mem)
     
-  def forward(self, input):
+  def forward(self, inputs):
     mem = self.mem
     losses = []
     artifacts = []
     
-    x      = self.embed_layer(input)
-    x, mem = self.encoder((x, mem), losses, artifacts)
-    x      = self.classifier(x)
+    x      = self.embed_layer(inputs)
+    x, mem = self.encoder((x, mem), mask, losses, artifacts)
+    x      = self.classifier(x, mask)
 
     return x, losses, artifacts
 
@@ -62,16 +62,21 @@ class MatchingTransformer(ClassificationTransformer):
     super(MatchingTransformer, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, logging_frequency)
     self.classifier  = DualClassifier(classes, hidden_dim, mlp_dim, affine)
 
-  def forward(self, inputs):
+  def forward(self, inputs, masks):
     additional_losses = []
     artifacts_1 = []
     artifacts_2 = []
 
     emb_1 = self.embed_layer(inputs[0])
     emb_2 = self.embed_layer(inputs[1])
+    
+    if mask is not None:
+        mask_1, mask_2 = mask
+    else:
+        mask_1, mask_2 = None, None
 
-    emb_1 = self.encoder(emb_1, losses=additional_losses, artifacts=artifacts_1)
-    emb_2 = self.encoder(emb_2, losses=additional_losses, artifacts=artifacts_2)
+    emb_1 = self.encoder(emb_1, mask_1, losses=additional_losses, artifacts=artifacts_1)
+    emb_2 = self.encoder(emb_2, mask_2, losses=additional_losses, artifacts=artifacts_2)
     
     x = self.classifier((emb_1, emb_2))
     
@@ -89,13 +94,17 @@ class LunaMatcher(LunaClassifier):
     additional_losses = []
     artifacts_1 = []
     artifacts_2 = []
-
-
+    
     emb_1 = self.embed_layer(inputs[0])
     emb_2 = self.embed_layer(inputs[1])
 
-    emb_1, mem_1 = self.encoder((emb_1, mem_1), losses=additional_losses, artifacts=artifacts_1)
-    emb_2, mem_2 = self.encoder((emb_2, mem_2), losses=additional_losses, artifacts=artifacts_2)
+    if mask is not None:
+        mask_1, mask_2 = mask
+    else:
+        mask_1, mask_2 = None, None
+    
+    emb_1, mem_1 = self.encoder((emb_1, mem_1), mask_1, losses=additional_losses, artifacts=artifacts_1)
+    emb_2, mem_2 = self.encoder((emb_2, mem_2), mask_2, losses=additional_losses, artifacts=artifacts_2)
     
     x = self.classifier((emb_1, emb_2))
     
@@ -117,7 +126,7 @@ class LossMetric(torchmetrics.Metric):
         return torch.mean(torch.Tensor(self.values))
     
 class LraLightningWrapper(pl.LightningModule):
-    def __init__(self, model, reg_weight=1.0, betas=(0.9, 0.98), base_lr=0.05, wd=0.1, schedule=lambda x: 1.0, log_non_scalars=True, log_params=True):
+    def __init__(self, model, reg_weight=1.0, betas=(0.9, 0.98), base_lr=0.05, wd=0.1, schedule=lambda x: 1.0, log_non_scalars=True, log_params=True, mask_inputs=False,):
         super().__init__()
         #self.automatic_optimization = False
         self.model = model
@@ -130,6 +139,7 @@ class LraLightningWrapper(pl.LightningModule):
         self.schedule = schedule
         self.log_non_scalars = log_non_scalars
         self.log_params = log_params
+        self.mask_inputs = mask_inputs
         
         #nn.ModuleDict is needed for correct handling of multi-device training
         self.train_metrics = nn.ModuleDict({
@@ -237,11 +247,15 @@ class LraLightningWrapper(pl.LightningModule):
         if 'inputs' in batch.keys():
             inp = torch.from_numpy(batch['inputs']).to(self.device)
             batch_size = inp.shape[0]
+            mask = (inp != 0).float()
         else:
             inp = (torch.from_numpy(batch['inputs1']).to(self.device), torch.from_numpy(batch['inputs2']).to(self.device))
             batch_size = inp[0].shape[0]
+            mask = ((inp[0] != 0).float(), (inp[1] != 0).float())
         target = torch.from_numpy(batch['targets']).long().to(self.device)
-        return inp, target, batch_size
+        if not self.mask_inputs:
+            mask = None
+        return inp, target, mask, batch_size
         
     def on_after_backward(self):
         artifacts = []
@@ -251,8 +265,8 @@ class LraLightningWrapper(pl.LightningModule):
         self.log_artifacts(artifacts)
         
     def training_step(self, batch, batch_idx):
-        inp, target, batch_size = self.unpack_batch(batch)
-        preds, auxiliary_losses, artifacts = self.model(inp)
+        inp, target, mask, batch_size = self.unpack_batch(batch)
+        preds, auxiliary_losses, artifacts = self.model(inp, mask)
         
         auxiliary_losses = torch.mean(auxiliary_losses) if auxiliary_losses else torch.tensor(0.0)
         loss = self.loss(preds, target)
@@ -293,8 +307,8 @@ class LraLightningWrapper(pl.LightningModule):
             metric.reset()
             
     def validation_step(self, batch, batch_idx):
-        inp, target, batch_size = self.unpack_batch(batch)
-        preds, auxiliary_losses, _ = self.model(inp)
+        inp, target, mask, batch_size = self.unpack_batch(batch)
+        preds, auxiliary_losses, _ = self.model(inp, mask)
         
         auxiliary_losses = torch.mean(auxiliary_losses) if auxiliary_losses else torch.tensor(0.0)
         loss = self.loss(preds, target)
@@ -325,8 +339,8 @@ class LraLightningWrapper(pl.LightningModule):
             metric.reset()
             
     def test_step(self, batch, batch_idx):
-        inp, target = self.unpack_batch(batch)
-        preds, auxiliary_losses, _ = self.model(inp)
+        inp, target, mask, batch_size = self.unpack_batch(batch)
+        preds, auxiliary_losses, _ = self.model(inp, mask)
         
         auxiliary_losses = torch.mean(auxiliary_losses) if auxiliary_losses else torch.tensor(0.0)
         loss = self.loss(preds, target)

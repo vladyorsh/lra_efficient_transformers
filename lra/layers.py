@@ -54,9 +54,10 @@ class TAttention(nn.Module):
     x = x.view(* new_shape)
     return x.permute(0, 2, 1, 3)
 
-  def forward(self, q, k=None, v=None, losses=[]):
+  def forward(self, q, k=None, v=None, q_mask=None, k_mask=None, losses=[]):
     if k is None:
       k = v = q
+      k_mask = q_mask
     
     q = self.q(q)
     k = self.k(k)
@@ -65,7 +66,19 @@ class TAttention(nn.Module):
     
     q, k, v = self.split_heads(q), self.split_heads(k), self.split_heads(v)
     q = torch.mul(q, 1. / torch.sqrt(torch.tensor(self.head_dim)))
-    logits = torch.matmul(q, k.transpose(-1, -2))
+    logits = torch.einsum('bhqd,bhkd->bhqk', q, k)
+    
+    if q_mask is None and k_mask is None:
+        ...
+    else:
+        if q_mask is None:
+            mask = einops.rearrange(k_mask, 'b k -> b 1 1 k')
+        elif k_mask is None:
+            mask = einops.rearrange(q_mask, 'b q -> b 1 q 1')
+        else:
+            mask = torch.einsum('bq,bk->bqk', q_mask, k_mask).unsqueeze(-3)
+        logits = logits + -1e5 * (1 - mask)
+    
     att = nn.Softmax(dim=-1)(logits)
 
     att = self.dropout(att) #Like in TF implementation; could be done before Softmax by random -inf addition
@@ -101,17 +114,22 @@ class TBlock(nn.Module):
     )
 
 
-  def forward(self, input, losses=[], artifacts=[]):
+  def forward(self, input, mask, losses=[], artifacts=[]):
+    if mask is not None:
+        x = x * mask.unsqueeze(-1)
     x = self.layernorm_input(input)
-    x, att = self.attention(x, losses=losses)
+    x, att = self.attention(x, q_mask=mask, losses=losses)
     
     artifacts.append(
         Artifact(att[0], 'att_logits', 'tensor_stack', self.logging_frequency),
     )
 
     x = input + x
-
+    
+    if mask is not None:
+        x = x * mask.unsqueeze(-1)
     y = self.layernorm_inter(x)
+    
     x = self.ffn(y) + x
 
     return x
@@ -129,7 +147,9 @@ class TClassifier(nn.Module):
     )
     self.output    = nn.Linear(inter_dim, classes, bias=affine)
 
-  def forward(self, x):
+  def forward(self, x, mask=None):
+    if mask is not None:
+        x = x * mask.unsqueeze(-1)
     x = self.layernorm(x)
     x = x[:, 0, :]
     x = self.dropout(x)
@@ -179,40 +199,18 @@ class LunaBlock(TBlock):
                 self.attention_unpack.lin = self.attention.lin
 
 
-  def forward(self, input, memory, losses=[], artifacts=[]):
+  def forward(self, input, memory, mask=None, losses=[], artifacts=[]):
     
-    packed, packed_att = self.attention(memory, input, input)
-    unpacked, unpacked_att = self.attention_unpack(input, packed, packed)
-    
+    packed, packed_att = self.attention(memory, input, input, k_mask=mask)
+    unpacked, unpacked_att = self.attention_unpack(input, packed, packed, q_mask=mask)
+    if mask is not None:
+        unpacked = unpacked * mask.unsqueeze(-1)
     q = self.layernorm_input(input + unpacked)
     m = self.layernorm_mem(memory + packed)
 
     y = self.ffn(q)
-    q = self.layernorm_inter(q + y)
-    
-    artifacts.append( (
-    Artifact(packed[0], 'packed', ('tensor_slice', 'hist'), self.logging_frequency),
-    Artifact(unpacked[0], 'unpacked', ('tensor_slice', 'hist'), self.logging_frequency),
-    Artifact(packed_att[0], 'packed_att_logits', 'tensor_stack', self.logging_frequency),
-    Artifact(unpacked_att[0], 'unpacked_att_logits', 'tensor_stack', self.logging_frequency),
-    Artifact(memory[0], 'input_memory', ('tensor_slice', 'hist'), self.logging_frequency),
-    ) )
-
-    return q, m
-
-class MLunaBlock(LunaBlock):
-  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full'):
-    super(MLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency, shared_att)
-    
-  def forward(self, input, memory, losses=[], artifacts=[]):
-    
-    packed, packed_att = self.attention(memory, input, input)
-    unpacked, unpacked_att = self.attention_unpack(input, packed, packed)
-    
-    q = self.layernorm_input(input + unpacked)
-    m = self.layernorm_mem(memory + packed)
-
-    y = self.ffn(q)
+    if mask is not None:
+        y = y * mask.unsqueeze(-1)
     q = self.layernorm_inter(q + y)
     
     artifacts.append( (
