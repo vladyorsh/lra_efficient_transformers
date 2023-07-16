@@ -241,7 +241,7 @@ class LraLightningWrapper(pl.LightningModule):
             inp = (torch.from_numpy(batch['inputs1']).to(self.device), torch.from_numpy(batch['inputs2']).to(self.device))
             batch_size = inp[0].shape[0]
         target = torch.from_numpy(batch['targets']).long().to(self.device)
-        return inp, target
+        return inp, target, batch_size
         
     def on_after_backward(self):
         artifacts = []
