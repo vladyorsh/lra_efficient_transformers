@@ -228,27 +228,10 @@ class LunaBlock(TBlock):
     return q, m
 
 
-class PreLunaBlock(TBlock):
+class PreLunaBlock(LunaBlock):
   def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full'):
     super(PreLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency)
-    self.layernorm_mem = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
     self.layernorm_packed  = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
-    self.layernorm_mem_inter    = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
-
-    if shared_att == 'full':
-        self.attention_unpack = self.attention
-    else:
-        self.attention_unpack = TAttention(hidden_dim, qkv_dim, num_heads, dropout_rate)
-        if shared_att is not None:
-            if 'q' in shared_att:
-                self.attention_unpack.q = self.attention.q
-            if 'k' in shared_att:
-                self.attention_unpack.k = self.attention.k
-            if 'v' in shared_att:
-                self.attention_unpack.v = self.attention.v
-            if 'o' in shared_att:
-                self.attention_unpack.lin = self.attention.lin
-
 
   def forward(self, input, memory, mask=None, losses=[], artifacts=[]):
     to_append = ()
