@@ -50,7 +50,7 @@ MATCHING_SETUP = {
     'lr' : 0.05,
     'weight_decay' : 0.1,
     'schedule' : lambda: get_sqrt_schedule(warmup_steps=8000),
-    'steps' : 20000,
+    'steps' : 30000,
     'eval_period' : 200,
     'skip_eval' : 0,
     
