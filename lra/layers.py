@@ -256,10 +256,11 @@ class PreLunaBlock(LunaBlock):
         y = y * mask.unsqueeze(-1)
     q = q + y
     
-    artifacts.append( (
+    to_append = to_append + (
     Artifact(packed_att[0], 'packed_att_logits', 'tensor_stack', self.logging_frequency),
     Artifact(unpacked_att[0], 'unpacked_att_logits', 'tensor_stack', self.logging_frequency),
     Artifact(memory[0], 'input_memory', ('tensor_slice', 'hist'), self.logging_frequency),
-    ) )
+    )
+    artifacts.append(to_append)
 
     return q, m
