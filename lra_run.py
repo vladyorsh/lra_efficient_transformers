@@ -48,10 +48,12 @@ def get_setup(task):
 def get_model(args, encoder, setup):
     BASE_MODELS = { 'classification' : ClassificationTransformer, 'matching' : MatchingTransformer }
     LUNA_MODELS = { 'classification' : LunaClassifier,            'matching' : LunaMatcher }
+    PRELUNA_MODELS = { 'classification' : PreLunaClassifier }
     
     REGISTERED_MODELS = {
         'base' : BASE_MODELS,
         'luna' : LUNA_MODELS,
+        'preluna' : PRELUNA_MODELS,
     }
     
     task = 'classification' if args.task in { 'classification', 'listops' } else 'matching'
