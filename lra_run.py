@@ -142,7 +142,7 @@ def main(args):
         val_check_interval=setup['eval_period'],
         accumulate_grad_batches=accumulation_steps,
         #!!!!!!!!
-        fast_dev_run=False,
+        fast_dev_run=args.fast,
         barebones=False,
     )
     trainer.fit(model, train_dataloaders=train_dataset, val_dataloaders=valid_dataset)
@@ -178,5 +178,6 @@ if __name__ == "__main__":
     parser.add_argument('--mem_size', help='memory size for models like Luna', type=int, default=256)
     parser.add_argument('--mask_inputs', help='mask input [PAD] tokens', type=bool_type, default=False)
     parser.add_argument('--biases', help='enable biases and affine transforms', type=bool_type, default=True)
+    parser.add_argument('--fast', help='fast dev run for debugging', type=bool_type, default=False)
     args = parser.parse_args()
     main(args)
