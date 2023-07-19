@@ -155,7 +155,7 @@ def main(args):
             pl.callbacks.TQDMProgressBar(refresh_rate=100),
             
             #Early stopping
-            pl.callbacks.EarlyStopping('val_accuracy', min_delta=-0.01, patience=setup['patience'], verbose=True, mode='max', check_on_train_epoch_end=False),
+            pl.callbacks.EarlyStopping('val_accuracy', min_delta=0.0, patience=setup['patience'], verbose=True, mode='max', check_on_train_epoch_end=False),
             
             #Checkpointing
             pl.callbacks.ModelCheckpoint(monitor='val_accuracy', verbose=True, save_weights_only=False, mode='max', auto_insert_metric_name=True, every_n_train_steps=setup['eval_period'], save_on_train_epoch_end=False)
