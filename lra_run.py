@@ -102,8 +102,23 @@ def get_batch_size_and_acc_steps(effective_batch_size, per_device_batch_size, de
     accumulation_steps = max(1, effective_batch_size // sampled_batch_size)
     return sampled_batch_size, accumulation_steps, strategy
 
+def print_device_info():
+    device_count = 0
+    for device in range(torch.cuda.device_count()):
+      device_count += 1
+
+      t = torch.cuda.get_device_properties(device).total_memory
+      r = torch.cuda.memory_reserved(device)
+      a = torch.cuda.memory_allocated(device)
+      t = t / 1024 ** 2 #MB
+
+      device = torch.cuda.get_device_name(device)
+
+      print(f'Device: {device}, memory reserved: {r}, memory allocated: {a}, memory total: {t}')
+
 def main(args):
     setup = get_setup(args.task)
+    print_device_info()
     
     #Parse the training strategy and determine the sizes of sampled batches
     sampled_batch_size, accumulation_steps, strategy = get_batch_size_and_acc_steps(setup['full_batch_size'], args.batch_size, args.devices, args.accelerator, args.strategy)
@@ -147,8 +162,6 @@ def main(args):
     )
     trainer.fit(model, train_dataloaders=train_dataset, val_dataloaders=valid_dataset)
     trainer.test(model, dataloaders=test_dataset, ckpt_path='best', verbose=False)
-
-
     
 if __name__ == "__main__":
     def bool_type(x):

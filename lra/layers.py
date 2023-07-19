@@ -44,7 +44,7 @@ class TAttention(nn.Module):
     assert not qkv_dim % num_heads
     
     self.head_dim = qkv_dim // num_heads
-
+    
     self.q = nn.Linear(self.hidden_dim, self.qkv_dim, bias=affine)
     self.k = nn.Linear(self.hidden_dim, self.qkv_dim, bias=affine)
     self.v = nn.Linear(self.hidden_dim, self.qkv_dim, bias=affine)
