@@ -93,6 +93,7 @@ def get_batch_size_and_acc_steps(effective_batch_size, per_device_batch_size, de
     if 'ddp' in strategy: #Other strategies may split the batch automatically between devices (be careful!)
         sampled_batch_size = per_device_batch_size * devices
         
+        #The following is needed to avoid the CUDA_ERROR_OUT_OF_MEMORY on tf dataset processing
         gpus = tf.config.experimental.list_physical_devices('GPU')
         for gpu in gpus:
             tf.config.experimental.set_memory_growth(gpu, True)
@@ -130,7 +131,7 @@ def main(args):
     
     print(f'Sampling {sampled_batch_size} samples according to the strategy, and applying {accumulation_steps} grad accumulation steps.')
     
-    train_dataset, valid_dataset, test_dataset, encoder = get_lra_data(args.lib_path, args.data_path, args.task, sampled_batch_size, args.max_length)
+    train_dataset, valid_dataset, test_dataset, encoder = get_lra_data(args.lib_path, args.data_path, args.task, args.batch_size, args.max_length)
     train_dataset, valid_dataset, test_dataset = wrap_lra_tf_dataset(train_dataset, num_workers=args.data_workers), wrap_lra_tf_dataset(valid_dataset, num_workers=args.data_workers), wrap_lra_tf_dataset(test_dataset, num_workers=args.data_workers)
     
     torch.set_float32_matmul_precision(args.matmul_precision)
