@@ -99,7 +99,7 @@ class LunaStopperCallback(pl.callbacks.Callback):
         monitored_val = logs[self.key].squeeze()
         should_stop, reason = False, ''
         
-        if self.evaluations > self.min_evaluations and torch.lt(monitored_val, self.key):
+        if self.evaluations > self.min_evaluations and torch.lt(monitored_val, self.threshold_acc):
             self.should_stop = True
             reason = f'Reached threshold value {self.threshold_acc} after {self.evaluations} evaluations, stopping.'
             
