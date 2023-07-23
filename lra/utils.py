@@ -57,3 +57,53 @@ class PBar(pl.callbacks.TQDMProgressBar):
             disable=True,            
         )
         return bar
+        
+class LossMetric(torchmetrics.Metric):
+    def __init__(self):
+        super().__init__()
+        self.add_state("values", default=[], dist_reduce_fx="cat")
+
+    def update(self, value):
+        if torch.is_tensor(value):
+            value = value.detach()
+        self.values.append(value)
+
+    def compute(self):
+        return torch.mean(torch.Tensor(self.values))
+
+class LunaStopperCallback(pl.callbacks.Callback):
+    def __init__(self, key='val_accuracy', threshold_acc=0.51, min_evaluations=10):
+        self.threshold_acc  = threshold_acc
+        self.min_evaluations= min_evaluations
+        self.key = key
+        
+        self.evaluations = 0
+        
+    def state_dict(self):
+        return { 'threshold_acc' : self.threshold_acc, 'min_evaluations' : self.min_evaluations, 'key' : self.key, 'evaluations' : self.evaluations }
+        
+    def load_state_dict(self, state_dict):
+        self.threshold_acc = state_dict['threshold_acc']
+        self.min_evaluations=state_dict['min_evaluations']
+        self.key = state_dict['key']
+        self.evaluations = state_dict['evaluations']
+        
+    def on_validation_end(self, trainer, pl_module):
+        self.evaluations += 1
+        
+        logs = trainer.callback_metrics  
+        if trainer.fast_dev_run or self.key not in logs.keys():
+            return
+            
+        monitored_val = logs[self.key].squeeze()
+        should_stop, reason = False, ''
+        
+        if self.evaluations > self.min_evaluations and torch.lt(monitored_val, self.key):
+            self.should_stop = True
+            reason = f'Reached threshold value {self.threshold_acc} after {self.evaluations} evaluations, stopping.'
+            
+        should_stop = trainer.strategy.reduce_boolean_decision(should_stop, all=False)
+        trainer.should_stop = trainer.should_stop or should_stop
+        
+        if reason:
+            self._log_info(trainer, reason, False)

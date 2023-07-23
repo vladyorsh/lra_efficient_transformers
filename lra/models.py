@@ -1,8 +1,9 @@
 from .layers import *
-import torch
-import lightning.pytorch as pl
-import torchmetrics
+from .utils import LossMetric
 from collections.abc import Iterable
+import torch
+import torchmetrics
+import lightning.pytorch as pl
 import matplotlib.pyplot as plt
 
 class Encoder(nn.Module):
@@ -23,6 +24,7 @@ class ClassificationTransformer(nn.Module):
   def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, logging_frequency=1000):
     super(ClassificationTransformer, self).__init__()
     
+    self.classes = classes
     self.embed_layer = TEmbedding(num_embeddings, hidden_dim, seq_len)
     self.encoder     = Encoder(TBlock, num_blocks, hidden_dim, qkv_dim, mlp_dim, num_heads, internal_dropout_rate, affine, logging_frequency)
     self.classifier  = TClassifier(classes, hidden_dim, mlp_dim, output_dropout_rate, affine)
@@ -112,7 +114,6 @@ class LunaMatcher(LunaClassifier):
 
     return x, additional_losses, artifacts
     
-
 class PreLunaClassifier(LunaClassifier):
   def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, logging_frequency=1000, mem_size=256, shared_att='full'):
     super(PreLunaClassifier, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, logging_frequency, mem_size, shared_att)
@@ -122,19 +123,6 @@ class PreLunaMatcher(LunaMatcher):
     def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, logging_frequency=1000, mem_size=256, shared_att='full'):
         super(PreLunaMatcher, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, logging_frequency, mem_size, shared_att)
         self.encoder     = Encoder(PreLunaBlock, num_blocks, hidden_dim, qkv_dim, mlp_dim, num_heads, internal_dropout_rate, affine, logging_frequency, shared_att)
-
-class LossMetric(torchmetrics.Metric):
-    def __init__(self):
-        super().__init__()
-        self.add_state("values", default=[], dist_reduce_fx="cat")
-
-    def update(self, value):
-        if torch.is_tensor(value):
-            value = value.detach()
-        self.values.append(value)
-
-    def compute(self):
-        return torch.mean(torch.Tensor(self.values))
     
 class LraLightningWrapper(pl.LightningModule):
     def __init__(self, model, reg_weight=1.0, betas=(0.9, 0.98), base_lr=0.05, wd=0.1, schedule=lambda x: 1.0, log_non_scalars=True, log_params=True, mask_inputs=False):
