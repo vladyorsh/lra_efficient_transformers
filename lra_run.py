@@ -182,7 +182,7 @@ def main(args):
         barebones=False,
     )
     trainer.fit(model, train_dataloaders=train_dataset, val_dataloaders=valid_dataset)
-    trainer.test(model, dataloaders=test_dataset, ckpt_path='best', verbose=False)
+    trainer.test(model, dataloaders=test_dataset, ckpt_path='best', verbose=True)
     
 if __name__ == "__main__":
     def bool_type(x):
@@ -216,4 +216,5 @@ if __name__ == "__main__":
     parser.add_argument('--num_repeats', help='how many times to repeat the experiment', type=int, default=1)
     args = parser.parse_args()
     for i in range(args.num_repeats):
+        print(f'Starting experiment iteration {i}...')
         main(args)
