@@ -2,6 +2,8 @@ import numpy as np
 import torch
 import torchmetrics
 import lightning.pytorch as pl
+from lightning.fabric.utilities.rank_zero import _get_rank
+from lightning.pytorch.utilities.rank_zero import rank_prefixed_message
 import tensorflow_datasets as tfds
 import tqdm
 
@@ -108,3 +110,13 @@ class LunaStopperCallback(pl.callbacks.Callback):
         
         if reason:
             self._log_info(trainer, reason, False)
+            
+    def _log_info(self, trainer, message, log_rank_zero_only):
+        rank = _get_rank(
+            strategy=(trainer.strategy if trainer is not None else None),  # type: ignore[arg-type]
+        )
+        if trainer is not None and trainer.world_size <= 1:
+            rank = None
+        message = rank_prefixed_message(message, rank)
+        if rank is None or not log_rank_zero_only or rank == 0:
+            log.info(message)
