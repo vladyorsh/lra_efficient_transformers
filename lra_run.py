@@ -50,16 +50,19 @@ def get_model(args, encoder, setup):
     BASE_MODELS = { 'classification' : ClassificationTransformer, 'matching' : MatchingTransformer }
     LUNA_MODELS = { 'classification' : LunaClassifier,            'matching' : LunaMatcher }
     PRELUNA_MODELS = { 'classification' : PreLunaClassifier,      'matching' : PreLunaMatcher }
+    SELFLUNA_MODELS= { 'classification' : SelfLunaClassifier,     'matching' : SelfLunaMatcher }
     
     REGISTERED_MODELS = {
         'base' : BASE_MODELS,
         'luna' : LUNA_MODELS,
         'preluna' : PRELUNA_MODELS,
+        'selfluna' : SELFLUNA_MODELS,
     }
     
     ADDITIONAL_MODEL_ARGS = {
         'luna'      : ['mem_size'],
         'preluna'   : ['mem_size'],
+        'selfluna'  : ['mem_size'],
     }
     
     task = 'classification' if args.task in { 'classification', 'listops' } else 'matching'
@@ -163,12 +166,11 @@ def main(args):
             #PBar(refresh_rate=50),
             pl.callbacks.TQDMProgressBar(refresh_rate=100),
             
-            #Early stopping
-            pl.callbacks.EarlyStopping('val_accuracy', min_delta=0.0, patience=setup['patience'], verbose=True, mode='max', check_on_train_epoch_end=False),
-            
             #Checkpointing
             pl.callbacks.ModelCheckpoint(monitor='val_accuracy', verbose=True, save_weights_only=False, mode='max', auto_insert_metric_name=True, every_n_train_steps=setup['eval_period'], save_on_train_epoch_end=False),
             
+            #Early stopping
+            pl.callbacks.EarlyStopping('val_accuracy', min_delta=0.0, patience=setup['patience'], verbose=True, mode='max', check_on_train_epoch_end=False),
             LunaStopperCallback(threshold_acc= 1/model.model.classes + 0.01, min_evaluations=10),
         ],
         max_steps=setup['steps'],

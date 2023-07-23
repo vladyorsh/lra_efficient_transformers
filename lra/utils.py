@@ -111,7 +111,8 @@ class LunaStopperCallback(pl.callbacks.Callback):
         if reason:
             self._log_info(trainer, reason, False)
             
-    def _log_info(self, trainer, message, log_rank_zero_only):
+    @staticmethod
+    def _log_info(trainer, message, log_rank_zero_only):
         rank = _get_rank(
             strategy=(trainer.strategy if trainer is not None else None),  # type: ignore[arg-type]
         )

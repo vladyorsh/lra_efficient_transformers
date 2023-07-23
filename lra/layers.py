@@ -202,7 +202,6 @@ class LunaBlock(TBlock):
             if 'o' in shared_att:
                 self.attention_unpack.lin = self.attention.lin
 
-
   def forward(self, input, memory, mask=None, losses=[], artifacts=[]):
     
     packed, packed_att = self.attention(memory, input, input, k_mask=mask)
@@ -227,7 +226,6 @@ class LunaBlock(TBlock):
 
     return q, m
 
-
 class PreLunaBlock(LunaBlock):
   def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full'):
     super(PreLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency)
@@ -250,6 +248,61 @@ class PreLunaBlock(LunaBlock):
         unpacked = unpacked * mask.unsqueeze(-1)
     q = input + unpacked
     m = memory + packed
+
+    y = self.ffn(self.layernorm_inter(q))
+    if mask is not None:
+        y = y * mask.unsqueeze(-1)
+    q = q + y
+    
+    to_append = to_append + (
+    Artifact(packed_att[0], 'packed_att_logits', 'tensor_stack', self.logging_frequency),
+    Artifact(unpacked_att[0], 'unpacked_att_logits', 'tensor_stack', self.logging_frequency),
+    Artifact(memory[0], 'input_memory', ('tensor_slice', 'hist'), self.logging_frequency),
+    )
+    artifacts.append(to_append)
+
+    return q, m
+    
+class SelfLunaBlock(PreLunaBlock):
+  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full'):
+    super(SelfLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency)
+    
+    self.layernorm_packed  = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
+    if shared_att == 'full':
+        self.attention_self = self.attention
+    else:
+        self.attention_self = TAttention(hidden_dim, qkv_dim, num_heads, dropout_rate)
+        if shared_att is not None:
+            if 'q' in shared_att:
+                self.attention_self.q = self.attention.q
+            if 'k' in shared_att:
+                self.attention_self.k = self.attention.k
+            if 'v' in shared_att:
+                self.attention_self.v = self.attention.v
+            if 'o' in shared_att:
+                self.attention_self.lin = self.attention.lin
+    #self.layernorm_self = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
+
+  def forward(self, input, memory, mask=None, losses=[], artifacts=[]):
+    to_append = ()
+  
+    x = self.layernorm_input(input)
+    m = self.layernorm_mem(memory)
+    
+    packed, packed_att = self.attention(m, x, x, k_mask=mask)
+    to_append = to_append + (Artifact(packed[0], 'packed', ('tensor_slice', 'hist'), self.logging_frequency),)
+    
+    packed = self.layernorm_packed(packed)
+    unpacked, unpacked_att = self.attention_unpack(x, packed, packed, q_mask=mask)
+    to_append = to_append + (Artifact(unpacked[0], 'unpacked', ('tensor_slice', 'hist'), self.logging_frequency),)
+    
+    self_packed = self.attention_self(packed, packed, packed)
+    to_append = to_append + (Artifact(self_packed[0], 'self_packed', ('tensor_slice', 'hist'), self.logging_frequency),)
+    
+    if mask is not None:
+        unpacked = unpacked * mask.unsqueeze(-1)
+    q = input + unpacked
+    m = memory + self_packed
 
     y = self.ffn(self.layernorm_inter(q))
     if mask is not None:
