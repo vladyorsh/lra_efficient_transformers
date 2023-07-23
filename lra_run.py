@@ -57,8 +57,15 @@ def get_model(args, encoder, setup):
         'preluna' : PRELUNA_MODELS,
     }
     
+    ADDITIONAL_MODEL_ARGS = {
+        'luna'      : ['mem_size'],
+        'preluna'   : ['mem_size'],
+    }
+    
     task = 'classification' if args.task in { 'classification', 'listops' } else 'matching'
     model_class = REGISTERED_MODELS[args.model][task]
+    additional_args = ADDITIONAL_MODEL_ARGS[args.model]
+    additional_args = { arg : args.get(arg) for arg in additional_args }
     model = LraLightningWrapper(
         model_class(
             classes=setup['classes'],
@@ -73,6 +80,7 @@ def get_model(args, encoder, setup):
             output_dropout_rate=setup['output_dropout_rate'],
             affine=args.biases,
             logging_frequency=args.logging_frequency,
+            ** additional_args
         ),
         reg_weight=1.0,
         betas=(0.9, 0.999), #Original LRA uses 0.98, but may yield quite unsatisfying results
@@ -203,5 +211,6 @@ if __name__ == "__main__":
     parser.add_argument('--mask_inputs', help='mask input [PAD] tokens', type=bool_type, default=False)
     parser.add_argument('--biases', help='enable biases and affine transforms', type=bool_type, default=True)
     parser.add_argument('--fast', help='fast dev run for debugging', type=bool_type, default=False)
+    parser.add_argument('--mem_size', help='memory-augmented models memory size', type=int, default=256)
     args = parser.parse_args()
     main(args)
