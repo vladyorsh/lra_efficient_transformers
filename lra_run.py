@@ -207,7 +207,6 @@ if __name__ == "__main__":
     parser.add_argument('--logging_frequency', help='log non-scalars every N steps', type=int, default=100)
     parser.add_argument('--matmul_precision', help='torch matmul precision ( medium | high | highest )', default='highest')
     parser.add_argument('--log_params', help='log model parameter histograms and weight pictures', type=bool_type, default=False)
-    parser.add_argument('--mem_size', help='memory size for models like Luna', type=int, default=256)
     parser.add_argument('--mask_inputs', help='mask input [PAD] tokens', type=bool_type, default=False)
     parser.add_argument('--biases', help='enable biases and affine transforms', type=bool_type, default=True)
     parser.add_argument('--fast', help='fast dev run for debugging', type=bool_type, default=False)
