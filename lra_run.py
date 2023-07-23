@@ -213,5 +213,7 @@ if __name__ == "__main__":
     parser.add_argument('--biases', help='enable biases and affine transforms', type=bool_type, default=True)
     parser.add_argument('--fast', help='fast dev run for debugging', type=bool_type, default=False)
     parser.add_argument('--mem_size', help='memory-augmented models memory size', type=int, default=256)
+    parser.add_argument('--num_repeats', help='how many times to repeat the experiment', type=int, default=1)
     args = parser.parse_args()
-    main(args)
+    for i in range(args.num_repeats):
+        main(args)
