@@ -1,7 +1,8 @@
 import numpy as np
 import torch
-import tensorflow_datasets as tfds
+import torchmetrics
 import lightning.pytorch as pl
+import tensorflow_datasets as tfds
 import tqdm
 
 def num_parameters(model):

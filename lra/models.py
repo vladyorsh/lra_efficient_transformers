@@ -2,7 +2,6 @@ from .layers import *
 from .utils import LossMetric
 from collections.abc import Iterable
 import torch
-import torchmetrics
 import lightning.pytorch as pl
 import matplotlib.pyplot as plt
 
