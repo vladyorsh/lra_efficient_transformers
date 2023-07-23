@@ -65,7 +65,7 @@ def get_model(args, encoder, setup):
     task = 'classification' if args.task in { 'classification', 'listops' } else 'matching'
     model_class = REGISTERED_MODELS[args.model][task]
     additional_args = ADDITIONAL_MODEL_ARGS[args.model]
-    additional_args = { arg : args.getattr(arg) for arg in additional_args }
+    additional_args = { arg : args.vars().get(arg) for arg in additional_args }
     model = LraLightningWrapper(
         model_class(
             classes=setup['classes'],
