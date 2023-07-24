@@ -296,7 +296,7 @@ class SelfLunaBlock(PreLunaBlock):
     unpacked, unpacked_att = self.attention_unpack(x, packed, packed, q_mask=mask)
     to_append = to_append + (Artifact(unpacked[0], 'unpacked', ('tensor_slice', 'hist'), self.logging_frequency),)
     
-    self_packed = self.attention_self(packed, packed, packed)
+    self_packed, self_att = self.attention_self(packed, packed, packed)
     to_append = to_append + (Artifact(self_packed[0], 'self_packed', ('tensor_slice', 'hist'), self.logging_frequency),)
     
     if mask is not None:
@@ -312,6 +312,7 @@ class SelfLunaBlock(PreLunaBlock):
     to_append = to_append + (
     Artifact(packed_att[0], 'packed_att_logits', 'tensor_stack', self.logging_frequency),
     Artifact(unpacked_att[0], 'unpacked_att_logits', 'tensor_stack', self.logging_frequency),
+    Artifact(self_att[0], 'self_att_logits', 'tensor_stack', self.logging_frequency),
     Artifact(memory[0], 'input_memory', ('tensor_slice', 'hist'), self.logging_frequency),
     )
     artifacts.append(to_append)
