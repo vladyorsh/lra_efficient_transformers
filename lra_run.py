@@ -170,8 +170,8 @@ def main(args):
             pl.callbacks.ModelCheckpoint(monitor='val_accuracy', verbose=True, save_weights_only=True, mode='max', every_n_train_steps=None, save_on_train_epoch_end=False),
             
             #Early stopping
-            pl.callbacks.EarlyStopping('val_accuracy', min_delta=0.0, patience=setup['patience'], verbose=True, mode='max', check_on_train_epoch_end=False),
-            LunaStopperCallback(threshold_acc= 1/model.model.classes + 0.01, min_evaluations=10),
+            pl.callbacks.EarlyStopping('val_accuracy', min_delta=0.0, patience=setup['early_stop_patience'], verbose=True, mode='max', check_on_train_epoch_end=False),
+            LunaStopperCallback(threshold_acc= 1/model.model.classes + 0.01, min_evaluations=setup['fail_stop_warmup']),
         ],
         max_steps=setup['steps'],
         check_val_every_n_epoch=None,

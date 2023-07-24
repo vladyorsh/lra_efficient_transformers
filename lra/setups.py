@@ -19,7 +19,8 @@ CLS_SETUP = {
     'internal_dropout_rate' : 0.1,
     'output_dropout_rate' : 0.0,
     
-    'patience' : 25,
+    'early_stop_patience' : 25,
+    'fail_stop_warmup' : 10,
 }
 
 LISTOPS_SETUP = {
@@ -41,7 +42,8 @@ LISTOPS_SETUP = {
     'internal_dropout_rate' : 0.1,
     'output_dropout_rate' : 0.0,
     
-    'patience' : 150,
+    'early_stop_patience' : 150,
+    'fail_stop_warmup' : 50,
 }
 
 MATCHING_SETUP = {
@@ -64,5 +66,6 @@ MATCHING_SETUP = {
     'internal_dropout_rate' : 0.1,
     'output_dropout_rate' : 0.0,
     
-    'patience' : 35,
+    'early_stop_patience' : 35,
+    'fail_stop_warmup' : 10,
 }
