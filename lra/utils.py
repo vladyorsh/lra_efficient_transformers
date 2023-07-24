@@ -6,6 +6,9 @@ from lightning.fabric.utilities.rank_zero import _get_rank
 from lightning.pytorch.utilities.rank_zero import rank_prefixed_message
 import tensorflow_datasets as tfds
 import tqdm
+import logging
+
+log = logging.getLogger(__name__)
 
 def num_parameters(model):
   return sum(list(map(
