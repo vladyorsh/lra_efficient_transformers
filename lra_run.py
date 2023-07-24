@@ -173,6 +173,7 @@ def main(args):
             pl.callbacks.EarlyStopping('val_accuracy', min_delta=0.0, patience=setup['early_stop_patience'], verbose=True, mode='max', check_on_train_epoch_end=False),
             LunaStopperCallback(threshold_acc= 1/model.model.classes + 0.01, min_evaluations=setup['fail_stop_warmup']),
         ],
+        inference_mode='ddp' not in args.strategy,
         max_steps=setup['steps'],
         check_val_every_n_epoch=None,
         val_check_interval=setup['eval_period'],
