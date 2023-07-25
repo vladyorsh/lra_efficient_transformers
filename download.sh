@@ -10,4 +10,4 @@ gzip -d lra_release.gz
 tar -xf lra_release
 
 #Install HF libraries for the AG setup
-pip install transformers datasets sentencepiece
+pip install -r requirements.txt

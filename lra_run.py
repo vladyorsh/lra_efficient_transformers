@@ -86,7 +86,7 @@ def get_model(args, encoder, setup):
             ** additional_args
         ),
         reg_weight=1.0,
-        betas=(0.9, 0.999), #Original LRA uses 0.98, but may yield quite unsatisfying results
+        betas=(0.9, 0.999), #Original LRA uses 0.98
         base_lr=setup['lr'],
         wd=setup['weight_decay'],
         schedule=setup['schedule'](),

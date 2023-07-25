@@ -1,0 +1,9 @@
+torch
+torchvision
+torchaudio
+einops
+lightning
+tensorflow_text
+tensorflow-datasets
+torchmetrics
+matplotlib
