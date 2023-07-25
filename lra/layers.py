@@ -71,7 +71,7 @@ class TAttention(nn.Module):
     q, k, v = self.split_heads(q), self.split_heads(k), self.split_heads(v)
     q = torch.mul(q, 1. / torch.sqrt(torch.tensor(self.head_dim)))
     logits_raw = torch.einsum('bhqd,bhkd->bhqk', q, k)
-    logits = logits
+    logits = logits_raw
     if q_mask is None and k_mask is None:
         ...
     else:
