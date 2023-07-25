@@ -149,6 +149,8 @@ def main(args):
     model = get_model(args, encoder, setup)
     print(model)
     
+    random_acc_threshold = (1/model.model.classifier.classes) + 0.01
+    
     trainer = pl.Trainer(
         accelerator=args.accelerator,
         strategy=strategy,
@@ -157,9 +159,9 @@ def main(args):
         precision=args.precision,
         logger=pl.loggers.TensorBoardLogger('logs', name=args.exp_name), #pl.loggers.CSVLogger("logs", name=args.exp_name),
         callbacks=[
+            #Monitoring
             pl.callbacks.LearningRateMonitor(logging_interval='step'),
             #pl.callbacks.DeviceStatsMonitor(),
-            #pl.callbacks.EarlyStopping(...),
             
             #Progress bars
             #pl.callbacks.RichProgressBar(refresh_rate=1, leave=True),
@@ -171,7 +173,7 @@ def main(args):
             
             #Early stopping
             pl.callbacks.EarlyStopping('val_accuracy', min_delta=0.0, patience=setup['early_stop_patience'], verbose=True, mode='max', check_on_train_epoch_end=False),
-            LunaStopperCallback(threshold_acc= 1/model.model.classes + 0.01, min_evaluations=setup['fail_stop_warmup']),
+            LunaStopperCallback(threshold_acc=random_acc_threshold, min_evaluations=setup['fail_stop_warmup']),
         ],
         #Disable inference mode for DDP strategies to circumvent NCCL errors
         #which are otherwise likely to appear at the test stage

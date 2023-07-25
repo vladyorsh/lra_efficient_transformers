@@ -70,8 +70,8 @@ class TAttention(nn.Module):
     
     q, k, v = self.split_heads(q), self.split_heads(k), self.split_heads(v)
     q = torch.mul(q, 1. / torch.sqrt(torch.tensor(self.head_dim)))
-    logits = torch.einsum('bhqd,bhkd->bhqk', q, k)
-    
+    logits_raw = torch.einsum('bhqd,bhkd->bhqk', q, k)
+    logits = logits
     if q_mask is None and k_mask is None:
         ...
     else:
@@ -96,7 +96,7 @@ class TAttention(nn.Module):
 
     out = self.lin(out)
 
-    return out, logits
+    return out, logits_raw
 
 class TBlock(nn.Module):
   def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine=False, logging_frequency=1000):
