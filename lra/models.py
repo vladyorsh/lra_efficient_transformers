@@ -1,5 +1,5 @@
 from .layers import *
-from .utils import LossMetric
+from .utils import LossMetric, MyAcc
 from collections.abc import Iterable
 import torch
 import torchmetrics
@@ -154,12 +154,14 @@ class LraLightningWrapper(pl.LightningModule):
             'loss'     : LossMetric(),
             'reg_loss' : LossMetric(),
             'accuracy' : torchmetrics.classification.MulticlassAccuracy(self.model.classifier.classes),
+            'my_acc'   : MyAcc(self.model.classifier.classes),
         })
         
         self.test_metrics = nn.ModuleDict({
             'loss'     : LossMetric(),
             'reg_loss' : LossMetric(),
             'accuracy' : torchmetrics.classification.MulticlassAccuracy(self.model.classifier.classes),
+            'my_acc'   : MyAcc(self.model.classifier.classes),
         })
     
         
@@ -293,7 +295,7 @@ class LraLightningWrapper(pl.LightningModule):
         self.train_metrics['reg_loss'](auxiliary_losses)
         
         self.log("loss_step",     self.train_metrics['loss'], prog_bar=True)
-        self.log("reg_loss_step", self.train_metrics['reg_loss'], prog_bar=True)
+        self.log("reg_loss_step", self.train_metrics['reg_loss'], prog_bar=False)
         
         for name, metric in self.train_metrics.items():
             if name in { 'loss', 'reg_loss' }: continue
@@ -326,7 +328,7 @@ class LraLightningWrapper(pl.LightningModule):
         self.test_metrics['reg_loss'](auxiliary_losses)
             
         self.log('val_loss', self.test_metrics['loss'], on_step=False, on_epoch=True, sync_dist=True, batch_size=batch_size, prog_bar=True)
-        self.log('val_reg_loss', self.test_metrics['reg_loss'], on_step=False, on_epoch=True, sync_dist=True, batch_size=batch_size, prog_bar=True)
+        self.log('val_reg_loss', self.test_metrics['reg_loss'], on_step=False, on_epoch=True, sync_dist=True, batch_size=batch_size, prog_bar=False)
         
         for name, metric in self.test_metrics.items():
             if name in { 'loss', 'reg_loss' }: continue
@@ -358,7 +360,7 @@ class LraLightningWrapper(pl.LightningModule):
         self.test_metrics['reg_loss'](auxiliary_losses)
             
         self.log('test_loss', self.test_metrics['loss'], on_step=False, on_epoch=True, sync_dist=True, batch_size=batch_size, prog_bar=True)
-        self.log('test_reg_loss', self.test_metrics['reg_loss'], on_step=False, on_epoch=True, sync_dist=True, batch_size=batch_size, prog_bar=True)
+        self.log('test_reg_loss', self.test_metrics['reg_loss'], on_step=False, on_epoch=True, sync_dist=True, batch_size=batch_size, prog_bar=False)
         
         for name, metric in self.test_metrics.items():
             if name in { 'loss', 'reg_loss' }: continue

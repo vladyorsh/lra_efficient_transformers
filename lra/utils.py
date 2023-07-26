@@ -76,6 +76,23 @@ class LossMetric(torchmetrics.Metric):
 
     def compute(self):
         return torch.mean(torch.Tensor(self.values))
+        
+class MyAcc(torchmetrics.Metric):
+  def __init__(self, classes):
+    super().__init__()
+    self.classes = classes
+    self.add_state('accumulated', default=torch.tensor(0), dist_reduce_fx='sum')
+    self.add_state('number', default=torch.tensor(0), dist_reduce_fx='sum')
+
+  def update(self, pred, true):
+    pred = pred.argmax(dim=-1)
+    self.accumulated += (pred == true).sum()
+    self.number += pred.numel()
+
+  def compute(self):
+    if self.number > 1e-5:
+      return self.accumulated.float() / self.number
+    return self.accumulated.float() / 1.0
 
 class LunaStopperCallback(pl.callbacks.Callback):
     def __init__(self, key='val_accuracy', threshold_acc=0.51, min_evaluations=10):
