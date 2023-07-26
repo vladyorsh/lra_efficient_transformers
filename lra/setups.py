@@ -42,7 +42,7 @@ LISTOPS_SETUP = {
     'internal_dropout_rate' : 0.1,
     'output_dropout_rate' : 0.0,
     
-    'early_stop_patience' : 150,
+    'early_stop_patience' : 300,
     'fail_stop_warmup' : 50,
 }
 
