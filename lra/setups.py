@@ -66,6 +66,6 @@ MATCHING_SETUP = {
     'internal_dropout_rate' : 0.1,
     'output_dropout_rate' : 0.0,
     
-    'early_stop_patience' : 35,
+    'early_stop_patience' : 50,
     'fail_stop_warmup' : 10,
 }

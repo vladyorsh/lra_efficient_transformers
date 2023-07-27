@@ -174,7 +174,7 @@ def main(args):
             
             #Early stopping
             pl.callbacks.EarlyStopping(METRIC_TO_FOLLOW, min_delta=0.0, patience=setup['early_stop_patience'], verbose=True, mode='max', check_on_train_epoch_end=False),
-            LunaStopperCallback(threshold_acc=random_acc_threshold, min_evaluations=setup['fail_stop_warmup']),
+            LunaStopperCallback(key=METRIC_TO_FOLLOW.replace('val_', ''), threshold_acc=random_acc_threshold, min_evaluations=setup['fail_stop_warmup']),
         ],
         #Disable inference mode for DDP strategies to circumvent NCCL errors
         #which are otherwise likely to appear at the test stage
