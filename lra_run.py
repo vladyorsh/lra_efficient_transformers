@@ -86,7 +86,7 @@ def get_model(args, encoder, setup):
             ** additional_args
         ),
         reg_weight=1.0,
-        betas=(0.9, 0.999), #Original LRA uses 0.98
+        betas=(0.9, args.beta_2),
         base_lr=setup['lr'],
         wd=setup['weight_decay'],
         schedule=setup['schedule'](),
@@ -220,6 +220,7 @@ if __name__ == "__main__":
     parser.add_argument('--fast', help='fast dev run for debugging', type=bool_type, default=False)
     parser.add_argument('--mem_size', help='memory-augmented models memory size', type=int, default=256)
     parser.add_argument('--num_repeats', help='how many times to repeat the experiment', type=int, default=1)
+    parser.add_argument('--beta_2', help='AdamW beta_2 parameter', type=float, default=0.999)
     args = parser.parse_args()
     for i in range(args.num_repeats):
         print(f'Starting experiment iteration {i}...')
