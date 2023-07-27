@@ -150,7 +150,8 @@ def main(args):
     print(model)
     
     random_acc_threshold = (1/model.model.classifier.classes) + 0.01
-    METRIC_TO_FOLLOW = 'val_my_acc'
+    VAL_METRIC_TO_FOLLOW = 'val_my_acc'
+    TRAIN_METRIC_TO_FOLLOW = 'my_acc_epoch'
     
     trainer = pl.Trainer(
         accelerator=args.accelerator,
@@ -170,11 +171,11 @@ def main(args):
             pl.callbacks.TQDMProgressBar(refresh_rate=100),
             
             #Checkpointing
-            pl.callbacks.ModelCheckpoint(monitor=METRIC_TO_FOLLOW, verbose=True, save_weights_only=True, mode='max', every_n_train_steps=None, save_on_train_epoch_end=False),
+            pl.callbacks.ModelCheckpoint(monitor=VAL_METRIC_TO_FOLLOW, verbose=True, save_weights_only=True, mode='max', every_n_train_steps=None, save_on_train_epoch_end=False),
             
             #Early stopping
-            pl.callbacks.EarlyStopping(METRIC_TO_FOLLOW, min_delta=0.0, patience=setup['early_stop_patience'], verbose=True, mode='max', check_on_train_epoch_end=False),
-            LunaStopperCallback(key=METRIC_TO_FOLLOW.replace('val_', ''), threshold_acc=random_acc_threshold, min_evaluations=setup['fail_stop_warmup']),
+            pl.callbacks.EarlyStopping(VAL_METRIC_TO_FOLLOW, min_delta=0.0, patience=setup['early_stop_patience'], verbose=True, mode='max', check_on_train_epoch_end=False),
+            LunaStopperCallback(key=TRAIN_METRIC_TO_FOLLOW, threshold_acc=random_acc_threshold, min_evaluations=setup['fail_stop_warmup']),
         ],
         #Disable inference mode for DDP strategies to circumvent NCCL errors
         #which are otherwise likely to appear at the test stage
