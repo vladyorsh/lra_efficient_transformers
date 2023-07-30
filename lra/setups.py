@@ -2,6 +2,7 @@ from .utils import *
 
 CLS_SETUP = {
     'full_batch_size' : 32,
+    'max_length' : 4000,
     
     'lr' : 0.05,
     'weight_decay' : 0.1,
@@ -25,6 +26,7 @@ CLS_SETUP = {
 
 LISTOPS_SETUP = {
     'full_batch_size' : 32,
+    'max_length' : 2000,
     
     'lr' : 0.005,
     'weight_decay' : 0.1,
@@ -48,6 +50,7 @@ LISTOPS_SETUP = {
 
 MATCHING_SETUP = {
     'full_batch_size' : 32,
+    'max_length' : 4000,
     
     'lr' : 0.05,
     'weight_decay' : 0.1,

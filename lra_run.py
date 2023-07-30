@@ -46,7 +46,7 @@ def get_setup(task):
     setup = REGISTERED_SETUPS[task]
     return setup
         
-def get_model(args, encoder, setup):
+def get_model(args, encoder, setup, max_length):
     BASE_MODELS = { 'classification' : ClassificationTransformer, 'matching' : MatchingTransformer }
     LUNA_MODELS = { 'classification' : LunaClassifier,            'matching' : LunaMatcher }
     PRELUNA_MODELS = { 'classification' : PreLunaClassifier,      'matching' : PreLunaMatcher }
@@ -73,7 +73,7 @@ def get_model(args, encoder, setup):
         model_class(
             classes=setup['classes'],
             num_embeddings=encoder.vocab_size,
-            seq_len=args.max_length,
+            seq_len=max_length,
             hidden_dim=setup['hidden_dim'],
             qkv_dim=setup['qkv_dim'],
             mlp_dim=setup['mlp_dim'],
@@ -135,6 +135,7 @@ def print_device_info():
 
 def main(args):
     setup = get_setup(args.task)
+    max_length = args.max_length if args.max_length > 0 else setup['max_length']
     print_device_info()
     
     #Parse the training strategy and determine the sizes of sampled batches
@@ -142,11 +143,11 @@ def main(args):
     
     print(f'Sampling {sampled_batch_size} samples according to the strategy, and applying {accumulation_steps} grad accumulation steps.')
     
-    train_dataset, valid_dataset, test_dataset, encoder = get_lra_data(args.lib_path, args.data_path, args.task, args.batch_size, args.max_length)
+    train_dataset, valid_dataset, test_dataset, encoder = get_lra_data(args.lib_path, args.data_path, args.task, args.batch_size, max_length)
     train_dataset, valid_dataset, test_dataset = wrap_lra_tf_dataset(train_dataset, num_workers=args.data_workers), wrap_lra_tf_dataset(valid_dataset, num_workers=args.data_workers), wrap_lra_tf_dataset(test_dataset, num_workers=args.data_workers)
     
     torch.set_float32_matmul_precision(args.matmul_precision)
-    model = get_model(args, encoder, setup)
+    model = get_model(args, encoder, setup, max_length)
     print(model)
     
     random_acc_threshold = (1/model.model.classifier.classes) + 0.01
@@ -201,7 +202,7 @@ if __name__ == "__main__":
         
     parser = argparse.ArgumentParser(description='Run LRA tasks with chosen models.')
     parser.add_argument('--task', help='LRA task to be run on')
-    parser.add_argument('--max_length', type=int, help='max input length')
+    parser.add_argument('--max_length', type=int, help='max input length', default=-1)
     parser.add_argument('--model', help='model architecture')
     parser.add_argument('--batch_size', type=int, help='per-device batch size')
     parser.add_argument('--precision', help='PytorchLightning precision settings for faster computation', default='32-true')
