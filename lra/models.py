@@ -163,6 +163,8 @@ class LraLightningWrapper(pl.LightningModule):
             'accuracy' : torchmetrics.classification.MulticlassAccuracy(self.model.classifier.classes),
             'my_acc'   : MyAcc(self.model.classifier.classes),
         })
+        
+        self.logged_first_iter = False
     
         
     def on_train_start(self):
@@ -284,10 +286,11 @@ class LraLightningWrapper(pl.LightningModule):
         #Logging
         
         #Non-scalar
-        if self.log_non_scalars:
-            if self.log_params:
+        if self.log_non_scalars or not self.logged_first_iter:
+            if self.log_params or not self.logged_first_iter:
                 self.log_self_params(artifacts, types=('tensor_slice', 'hist'))
             self.log_artifacts(artifacts)
+            self.logged_first_iter = True
                     
         
         #Metrics
