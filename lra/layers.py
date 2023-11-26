@@ -179,13 +179,13 @@ class BAttention(TAttention):
         
         #Computing weights
         lpgamma = logprobs - torch.lgamma(1 + 1.0 / self.weibull_k)
-        noise = reparameterize_noise(logprobs, self.weibull_k, self.eps)
+        noise = reparameterize_noise(logprobs, self.weibull_k, torch.as_tensor(self.eps))
         att = nn.functional.softmax(
             lpgamma + noise
         , dim=-1)
         
         #Computing KL
-        KL = KL_weibull_gamma(logprobs, gamma_alpha, self.gamma_beta, lpgamma, self.weibull_k, self.eps)   
+        KL = KL_weibull_gamma(logprobs, gamma_alpha, self.gamma_beta, lpgamma, self.weibull_k, torch.as_tensor(self.eps))   
         KL = KL * self.anneal_rate()
         losses.append(KL)
         self.number_of_calls += 1
