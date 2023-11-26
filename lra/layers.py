@@ -175,9 +175,9 @@ class BAttention(TAttention):
         #Computing KL
         #Original code
         lpgamma = logprobs - torch.lgamma(1 + 1.0 / self.weibull_k)
-        KL = -(gamma_alpha * (lpgamma - np.euler_gamma * gamma_alpha / self.weibull_k \
+        KL = -(gamma_alpha * lpgamma - np.euler_gamma * gamma_alpha / self.weibull_k \
                              - self.gamma_beta * torch.exp(logprobs) + \
-                             gamma_alpha * torch.log(self.gamma_beta + self.eps) - torch.lgamma(gamma_alpha + self.eps)))
+                             gamma_alpha * torch.log(self.gamma_beta + self.eps) - torch.lgamma(gamma_alpha + self.eps))
                              
         KL = KL.mean() * self.anneal_rate()
         losses.append(KL)
