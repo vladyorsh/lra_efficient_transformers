@@ -163,19 +163,19 @@ class BAttention(TAttention):
             mask = torch.einsum('bq,bk->bqk', q_mask, k_mask).unsqueeze(-3)
         logits = logits + -1e5 * (1 - mask)
     
-    att = nn.Softmax(dim=-1)(logits)
     logprobs = logits #torch.log(att + self.eps)
     
     if self.training:
         #---Bayesian Attention---
         
         #Building the contextualized prior
-        dot_gamma = self.prior_proj(k)
-        if k_mask is not None:
-            mask = einops.rearrange(k_mask, 'b k -> b 1 k 1')
-            dot_gamma + -1e5 * (1 - mask)
-        prior_weights = nn.functional.softmax(dot_gamma, dim=-2)
-        gamma_alpha   = prior_weights.transpose(-1, -2) * self.gamma_beta
+        
+        #dot_gamma = self.prior_proj(k)
+        #if k_mask is not None:
+        #    mask = einops.rearrange(k_mask, 'b k -> b 1 k 1')
+        #    dot_gamma + -1e5 * (1 - mask)
+        #prior_weights = nn.functional.softmax(dot_gamma, dim=-2)
+        #gamma_alpha   = prior_weights.transpose(-1, -2) * self.gamma_beta
         
         #Computing weights
         lpgamma = logprobs - torch.lgamma(1 + 1.0 / self.weibull_k)
@@ -185,10 +185,13 @@ class BAttention(TAttention):
         , dim=-1)
         
         #Computing KL
-        KL = KL_weibull_gamma(logprobs, gamma_alpha, self.gamma_beta, lpgamma, self.weibull_k, torch.as_tensor(self.eps))   
-        KL = KL * self.anneal_rate()
-        losses.append(KL)
-        self.number_of_calls += 1
+        
+        #KL = KL_weibull_gamma(logprobs, gamma_alpha, self.gamma_beta, lpgamma, self.weibull_k, torch.as_tensor(self.eps))   
+        #KL = KL * self.anneal_rate()
+        #self.number_of_calls += 1
+        #losses.append(KL)
+    else:
+        att = nn.Softmax(dim=-1)(logits)
     
     att = self.dropout(att) #Like in TF implementation; could be done before Softmax by random -inf addition
     
