@@ -168,8 +168,14 @@ class BAttention(TAttention):
         
         #Computing weights
         noise = torch.rand_like(logprobs) * (1 - 2 * self.eps) + self.eps
+        torch.log_(noise)
+        noise *= -1
+        noise += self.eps
+        torch.log_(noise)
+        noise *= 1.0 / self.weibull_k
+        
         att = nn.functional.softmax(
-            logprobs - torch.lgamma(1 + 1.0 / self.weibull_k) + 1.0 / self.weibull_k * torch.log(- torch.log(1.0 - noise + self.eps) + self.eps)
+            logprobs - torch.lgamma(1 + 1.0 / self.weibull_k) + noise
         , dim=-1)
         
         #Computing KL
