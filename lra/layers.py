@@ -169,15 +169,15 @@ class BAttention(TAttention):
         #Computing weights
         noise = torch.rand_like(logprobs)
         att = nn.functional.softmax(
-            logprobs - torch.lgamma(1 + 1.0 / self.k_weibull) + 1.0 / self.k_weibull * torch.log(- torch.log(1.0 - noise + self.eps) + self.eps)
+            logprobs - torch.lgamma(1 + 1.0 / self.weibull_k) + 1.0 / self.weibull_k * torch.log(- torch.log(1.0 - noise + self.eps) + self.eps)
         , dim=-1)
         
         #Computing KL
         #Original code
-        KL = -(gamma_alpha * (logprobs - torch.lgamma(1 + 1.0 / self.weibull_k)) - np.euler_gamma * gamma_alpha / self.k_weibull \
-                             - self.gamma_beta * torch.exp(logprobs - torch.lgamma(1 + 1.0 / self.k_weibull) +
-                            torch.lgamma(1 + 1.0 / self.k_weibull)) + \
-                             self.alpha_gamma * torch.log(self.gamma_beta + eps) - torch.lgamma(self.alpha_gamma + eps))
+        KL = -(gamma_alpha * (logprobs - torch.lgamma(1 + 1.0 / self.weibull_k)) - np.euler_gamma * gamma_alpha / self.weibull_k \
+                             - self.gamma_beta * torch.exp(logprobs - torch.lgamma(1 + 1.0 / self.weibull_k) +
+                            torch.lgamma(1 + 1.0 / self.weibull_k)) + \
+                             gamma_alpha * torch.log(self.gamma_beta + eps) - torch.lgamma(gamma_alpha + eps))
                              
         KL = KL.mean() * self.anneal_rate()
         losses.append(KL)
