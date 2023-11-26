@@ -51,18 +51,21 @@ def get_model(args, encoder, setup, max_length):
     LUNA_MODELS = { 'classification' : LunaClassifier,            'matching' : LunaMatcher }
     PRELUNA_MODELS = { 'classification' : PreLunaClassifier,      'matching' : PreLunaMatcher }
     SELFLUNA_MODELS= { 'classification' : SelfLunaClassifier,     'matching' : SelfLunaMatcher }
+    BLUNA_MODELS = { 'classification' : BLunaClassifier, }
     
     REGISTERED_MODELS = {
         'base' : BASE_MODELS,
         'luna' : LUNA_MODELS,
         'preluna' : PRELUNA_MODELS,
         'selfluna' : SELFLUNA_MODELS,
+        'bluna' : BLUNA_MODELS,
     }
     
     ADDITIONAL_MODEL_ARGS = {
         'luna'      : ['mem_size'],
         'preluna'   : ['mem_size'],
         'selfluna'  : ['mem_size'],
+        'bluna'     : ['mem_size', 'weibull_k', 'gamma_beta', 'prior_hidden_size', 'anneal_k', 'anneal_b', 'eps'],
     }
     
     task = 'classification' if args.task in { 'classification', 'listops' } else 'matching'
@@ -223,6 +226,14 @@ if __name__ == "__main__":
     parser.add_argument('--mem_size', help='memory-augmented models memory size', type=int, default=256)
     parser.add_argument('--num_repeats', help='how many times to repeat the experiment', type=int, default=1)
     parser.add_argument('--beta_2', help='AdamW beta_2 parameter', type=float, default=0.999)
+    
+    parser.add_argument('--weibull_k', help='Weibull dist K parameter', type=float, default=10.0)
+    parser.add_argument('--gamma_beta', help='Gamma prior beta parameter', type=float, default=1e-4)
+    parser.add_argument('--prior_hidden_size', help='Prior transform hidden layer size', type=int, default=32)
+    parser.add_argument('--anneal_k', help='KLD annealing scaling parameter', type=float, default=0.0015)
+    parser.add_argument('--anneal_b', help='KLD annealing shift parameter', type=float, default=6.25)
+    parser.add_argument('--eps', help='fudge', type=float, default=1e-5)
+        
     args = parser.parse_args()
     for i in range(args.num_repeats):
         print(f'Starting experiment iteration {i}...')
