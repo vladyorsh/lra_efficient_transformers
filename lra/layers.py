@@ -164,7 +164,7 @@ class BAttention(TAttention):
             mask = einops.rearrange(k_mask, 'b k -> b 1 k 1')
             dot_gamma + -1e5 * (1 - mask)
         prior_weights = nn.functional.softmax(dot_gamma, dim=-2)
-        gamma_alpha   = prior_weights * self.gamma_beta
+        gamma_alpha   = prior_weights.transpose(-1, -2) * self.gamma_beta
         
         #Computing weights
         noise = torch.rand_like(logprobs)
@@ -177,7 +177,7 @@ class BAttention(TAttention):
         KL = -(gamma_alpha * (logprobs - torch.lgamma(1 + 1.0 / self.weibull_k)) - np.euler_gamma * gamma_alpha / self.weibull_k \
                              - self.gamma_beta * torch.exp(logprobs - torch.lgamma(1 + 1.0 / self.weibull_k) +
                             torch.lgamma(1 + 1.0 / self.weibull_k)) + \
-                             gamma_alpha * torch.log(self.gamma_beta + eps) - torch.lgamma(gamma_alpha + eps))
+                             gamma_alpha * torch.log(self.gamma_beta + self.eps) - torch.lgamma(gamma_alpha + self.eps))
                              
         KL = KL.mean() * self.anneal_rate()
         losses.append(KL)
