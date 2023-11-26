@@ -98,6 +98,17 @@ class TAttention(nn.Module):
 
     return out, logits_raw
     
+    
+@torch.jit.script
+def reparameterize_noise(logprobs, weibull_k, eps):
+    return 1.0 / weibull_k * torch.log(- torch.log(torch.rand_like(logprobs) * (1 - 2 * eps) + eps) + eps)
+    
+@torch.jit.script
+def KL_weibull_gamma(logprobs, gamma_alpha, gamma_beta, lpgamma, weibull_k, eps):
+    return -(gamma_alpha * lpgamma - np.euler_gamma * gamma_alpha / weibull_k \
+                             - gamma_beta * torch.exp(logprobs) + \
+                             gamma_alpha * torch.log(gamma_beta + eps) - torch.lgamma(gamma_alpha + eps)).mean()
+    
 class BAttention(TAttention):
   def __init__(self, hidden_dim, qkv_dim, num_heads, dropout_rate, affine=False, weibull_k=10.0, gamma_beta=1e-4, prior_hidden_size=32, anneal_k=0.00015, anneal_b=6.25, eps=1e-5):
     super(BAttention, self).__init__(hidden_dim, qkv_dim, num_heads, dropout_rate, affine)
@@ -167,25 +178,15 @@ class BAttention(TAttention):
         gamma_alpha   = prior_weights.transpose(-1, -2) * self.gamma_beta
         
         #Computing weights
-        noise = torch.rand_like(logprobs) * (1 - 2 * self.eps) + self.eps
-        torch.log_(noise)
-        noise *= -1
-        noise += self.eps
-        torch.log_(noise)
-        noise *= 1.0 / self.weibull_k
-        
+        lpgamma = logprobs - torch.lgamma(1 + 1.0 / self.weibull_k)
+        noise = reparameterize_noise(logprobs, self.weibull_k, self.eps)
         att = nn.functional.softmax(
-            logprobs - torch.lgamma(1 + 1.0 / self.weibull_k) + noise
+            lpgamma + noise
         , dim=-1)
         
         #Computing KL
-        #Original code
-        lpgamma = logprobs - torch.lgamma(1 + 1.0 / self.weibull_k)
-        KL = -(gamma_alpha * lpgamma - np.euler_gamma * gamma_alpha / self.weibull_k \
-                             - self.gamma_beta * torch.exp(logprobs) + \
-                             gamma_alpha * torch.log(self.gamma_beta + self.eps) - torch.lgamma(gamma_alpha + self.eps))
-                             
-        KL = KL.mean() * self.anneal_rate()
+        KL = KL_weibull_gamma(logprobs, gamma_alpha, self.gamma_beta, lpgamma, self.weibull_k, self.eps)   
+        KL = KL * self.anneal_rate()
         losses.append(KL)
         self.number_of_calls += 1
     
