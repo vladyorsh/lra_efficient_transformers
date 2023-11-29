@@ -271,7 +271,7 @@ class LraLightningWrapper(pl.LightningModule):
             p = param.data.squeeze()
             while len(p.shape) < 2:
                 p = p.unsqueeze(0)
-            artifact = self.prepare_tensor_for_viz()
+            artifact = self.prepare_tensor_for_viz(p)
             artifacts.append(
                 Artifact(artifact, name, types, self.model.logging_frequency)
             )
