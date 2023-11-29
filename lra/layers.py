@@ -511,8 +511,8 @@ class vMFLunaBlock(LunaBlock):
 
     v0 = torch.tensor([]).to(self.vmf_k)
     while len(v0) < N:
-        eps = beta.sample([1, rsf*(N-len(v0))]).squeeze().to(self.vmf_k)
-        uns = uniform.sample([1, rsf*(N-len(v0))]).squeeze().to(self.vmf_k)
+        eps = beta.sample([1, rejection_sampling_factor*(N-len(v0))]).squeeze().to(self.vmf_k)
+        uns = uniform.sample([1, rejection_sampling_factor*(N-len(v0))]).squeeze().to(self.vmf_k)
         w0 = (1 - (1+bb)*eps) / (1 - (1-bb)*eps)
         t0 = (2*aa*bb) / (1 - (1-bb)*eps)
         det = (d-1)*t0.log() - t0 + dd - uns.log()
