@@ -481,7 +481,7 @@ class vMFLunaBlock(LunaBlock):
         nn.SiLU(),
         nn.Linear(hidden_dim, hidden_dim)
     )
-    [ nn.init.zeros_(b) for n, b in self.rec_network.named_parameters if 'bias' in n ]
+    [ nn.init.zeros_(b) for n, b in self.rec_network.named_parameters() if 'bias' in n ]
     
     self.vmf_k = nn.Parameter(torch.as_tensor(vmf_k), requires_grad=False)
     self.prior_mu = nn.Parameter(torch.randn(1, 1, mem_size, hidden_dim), requires_grad=True)
