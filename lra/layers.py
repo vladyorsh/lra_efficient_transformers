@@ -474,7 +474,7 @@ class BLunaBlock(TBlock):
     
 class vMFLunaBlock(LunaBlock):
   def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full', vmf_k=10.0, mem_size=256, anneal_k=0.00015, anneal_b=6.25, eps=1e-5):
-    super(vMFLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full')
+    super(vMFLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency, shared_att)
     
     self.rec_network = nn.Sequential(
         nn.Linear(hidden_dim, hidden_dim),
