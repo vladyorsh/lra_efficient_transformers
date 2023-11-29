@@ -307,7 +307,7 @@ class LraLightningWrapper(pl.LightningModule):
         inp, target, mask, batch_size = self.unpack_batch(batch)
         preds, auxiliary_losses, artifacts = self.model(inp, mask)
         
-        auxiliary_losses = torch.mean(auxiliary_losses) if auxiliary_losses else torch.tensor(0.0)
+        auxiliary_losses = torch.mean(torch.as_tensor(auxiliary_losses)) if auxiliary_losses else torch.tensor(0.0)
         loss = self.loss(preds, target)
         
         #Logging
@@ -350,7 +350,7 @@ class LraLightningWrapper(pl.LightningModule):
         inp, target, mask, batch_size = self.unpack_batch(batch)
         preds, auxiliary_losses, _ = self.model(inp, mask)
         
-        auxiliary_losses = torch.mean(auxiliary_losses) if auxiliary_losses else torch.tensor(0.0)
+        auxiliary_losses = torch.mean(torch.as_tensor(auxiliary_losses)) if auxiliary_losses else torch.tensor(0.0)
         loss = self.loss(preds, target)
         
         #Logging
@@ -382,7 +382,7 @@ class LraLightningWrapper(pl.LightningModule):
         inp, target, mask, batch_size = self.unpack_batch(batch)
         preds, auxiliary_losses, _ = self.model(inp, mask)
         
-        auxiliary_losses = torch.mean(auxiliary_losses) if auxiliary_losses else torch.tensor(0.0)
+        auxiliary_losses = torch.mean(torch.as_tensor(auxiliary_losses)) if auxiliary_losses else torch.tensor(0.0)
         loss = self.loss(preds, target)
         
         #Logging
