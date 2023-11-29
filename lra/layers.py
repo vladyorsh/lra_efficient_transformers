@@ -348,7 +348,7 @@ class PreLunaBlock(LunaBlock):
     packed, packed_att = self.attention(m, x, x, k_mask=mask)
     to_append = to_append + (Artifact(packed[0], 'packed', ('tensor_slice', 'hist'), self.logging_frequency),)
     
-    packed = self.layernorm_packed(packed)
+    packed = packed + self.ffn(self.layernorm_packed(packed))
     unpacked, unpacked_att = self.attention_unpack(x, packed, packed, q_mask=mask)
     to_append = to_append + (Artifact(unpacked[0], 'unpacked', ('tensor_slice', 'hist'), self.logging_frequency),)
     
@@ -450,7 +450,106 @@ class BLunaBlock(TBlock):
   def forward(self, input, memory, mask=None, losses=[], artifacts=[]):
     
     packed, packed_att = self.attention(memory, input, input, k_mask=mask)
+    #packed = self.ffn(packed)
     unpacked, unpacked_att = self.attention_unpack(input, packed, packed, q_mask=mask)
+    if mask is not None:
+        unpacked = unpacked * mask.unsqueeze(-1)
+    q = self.layernorm_input(input + unpacked)
+    m = self.layernorm_mem(memory + packed)
+
+    y = self.ffn(q)
+    if mask is not None:
+        y = y * mask.unsqueeze(-1)
+    q = self.layernorm_inter(q + y)
+    
+    artifacts.append( (
+    Artifact(packed[0], 'packed', ('tensor_slice', 'hist'), self.logging_frequency),
+    Artifact(unpacked[0], 'unpacked', ('tensor_slice', 'hist'), self.logging_frequency),
+    Artifact(packed_att[0], 'packed_att_logits', 'tensor_stack', self.logging_frequency),
+    Artifact(unpacked_att[0], 'unpacked_att_logits', 'tensor_stack', self.logging_frequency),
+    Artifact(memory[0], 'input_memory', ('tensor_slice', 'hist'), self.logging_frequency),
+    ) )
+
+    return q, m
+    
+class vMFLunaBlock(LunaBlock):
+  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full', vmf_k=10.0, mem_size=256):
+    super(vMFLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full')
+    
+    self.rec_network = nn.Sequential(
+        nn.Linear(hidden_dim, hidden_dim),
+        nn.SiLU(),
+        nn.Linear(hidden_dim, hidden_dim)
+    )
+    [ nn.init.zeros_(b) for n, b in self.rec_network.named_parameters if 'bias' in n ]
+    
+    self.vmf_k = nn.Parameter(torch.as_tensor(vmf_k), requires_grad=False)
+    self.prior_mu = nn.Parameter(torch.randn(1, 1, mem_size, hidden_dim), requires_grad=True)
+    nn.init.normal_(self.prior_mu)
+    self.prior_mu.data = self.prior_mu.data / torch.norm(self.prior_mu, dim=-1, keepdim=True)
+    
+  def sample(self, recognized, rejection_sampling_factor=10):
+    v = torch.randn_like(recognized, device=self.vmf_k.device)[..., :-1]
+    v = v / torch.norm(v, dim=-1, keepdim=True)
+    d = recognized.shape[-1]
+    
+    kmr = torch.sqrt( 4 * self.vmf_k**2 + (d - 1)**2 )
+    bb = (kmr - 2 * self.vmf_k) / (d-1)
+    aa = (kmr + 2 * self.vmf_k + d - 1) / 4
+    dd = (4 * aa * bb)/(1 + bb) - (d - 1)*np.log(d-1)
+    beta = torch.distributions.Beta(torch.tensor(0.5 * (d - 1)), torch.tensor(0.5 * (d - 1)) )
+    uniform = torch.distributions.Uniform(0.0, 1.0)
+    
+    N = np.prod(v.shape[:-1])
+
+    v0 = torch.tensor([]).to(self.vmf_k)
+    while len(v0) < N:
+        eps = beta.sample([1, rsf*(N-len(v0))]).squeeze().to(self.vmf_k)
+        uns = uniform.sample([1, rsf*(N-len(v0))]).squeeze().to(self.vmf_k)
+        w0 = (1 - (1+bb)*eps) / (1 - (1-bb)*eps)
+        t0 = (2*aa*bb) / (1 - (1-bb)*eps)
+        det = (d-1)*t0.log() - t0 + dd - uns.log()
+        v0 = torch.cat([v0, torch.tensor(w0[det>=0]).to(self.vmf_k)])
+        if len(v0) > N:
+            v0 = v0[:N]
+            break
+    v0 = v0.reshape(v.shape[:-1] + (1,))
+    
+    # Step-3: Form x = [v0; sqrt(1-v0^2)*v]
+    samples = torch.cat([v0, (1-v0**2).sqrt()*v], dim=-1)
+
+    # Setup-4: Householder transformation
+    e1mu = torch.zeros_like(recognized);  e1mu[..., 0] = 1.0
+    e1mu = e1mu - recognized
+    e1mu = e1mu / torch.norm(e1mu, dim=-1, keepdim=True)
+    U = torch.eye(d)[None, None, ...] - 2 * torch.einsum('...md,...mt->...mdt', e1mu, e1mu)
+    samples = torch.einsum('...mtd,...md->...mt',U,samples)
+    
+    return samples
+    
+  def prior_unit_constraint(self):
+    return torch.square(torch.norm(self.prior_mu, dim=-1) - 1.0)
+    
+  def kld(self, sample):
+    return (1 - nn.functional.cosine_similarity(sample, self.prior_mu, dim=-1) + self.prior_unit_constraint()).mean()
+
+  def forward(self, input, memory, mask=None, losses=[], artifacts=[]):
+    
+    packed, packed_att = self.attention(memory, input, input, k_mask=mask)
+   
+    #Recognize the direction vectors
+    recognized = self.rec_network(packed)
+    recognized = recognized / recognized.sum(dim=-1, keepdim=True)
+    
+    #Sample from variational distributions
+    sample = self.sample(recognized)
+    
+    #Compute KLD
+    kld = self.kld(sample)
+    losses.append(kld)
+    
+    #Use sampled vectors as a memory
+    unpacked, unpacked_att = self.attention_unpack(input, sample, sample, q_mask=mask)
     if mask is not None:
         unpacked = unpacked * mask.unsqueeze(-1)
     q = self.layernorm_input(input + unpacked)

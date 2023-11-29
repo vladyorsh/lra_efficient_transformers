@@ -52,6 +52,7 @@ def get_model(args, encoder, setup, max_length):
     PRELUNA_MODELS = { 'classification' : PreLunaClassifier,      'matching' : PreLunaMatcher }
     SELFLUNA_MODELS= { 'classification' : SelfLunaClassifier,     'matching' : SelfLunaMatcher }
     BLUNA_MODELS = { 'classification' : BLunaClassifier, }
+    VMFLUNA_MODELS ={ 'classification' : vMFLunaClassifier, }
     
     REGISTERED_MODELS = {
         'base' : BASE_MODELS,
@@ -59,6 +60,7 @@ def get_model(args, encoder, setup, max_length):
         'preluna' : PRELUNA_MODELS,
         'selfluna' : SELFLUNA_MODELS,
         'bluna' : BLUNA_MODELS,
+        'vmfluna' : VMFLUNA_MODELS,
     }
     
     ADDITIONAL_MODEL_ARGS = {
@@ -66,6 +68,7 @@ def get_model(args, encoder, setup, max_length):
         'preluna'   : ['mem_size'],
         'selfluna'  : ['mem_size'],
         'bluna'     : ['mem_size', 'weibull_k', 'gamma_beta', 'prior_hidden_size', 'anneal_k', 'anneal_b', 'eps'],
+        'vmfluna'   : ['mem_size', 'vmf_k' ],
     }
     
     task = 'classification' if args.task in { 'classification', 'listops' } else 'matching'
@@ -233,6 +236,8 @@ if __name__ == "__main__":
     parser.add_argument('--anneal_k', help='KLD annealing scaling parameter', type=float, default=0.0015)
     parser.add_argument('--anneal_b', help='KLD annealing shift parameter', type=float, default=6.25)
     parser.add_argument('--eps', help='fudge', type=float, default=1e-5)
+    
+    parser.add_argument('--vmf_k', help='vMF kappa parameter', type=float, default=10.0)
         
     args = parser.parse_args()
     for i in range(args.num_repeats):
