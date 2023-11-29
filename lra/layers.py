@@ -473,7 +473,7 @@ class BLunaBlock(TBlock):
     return q, m
     
 class vMFLunaBlock(LunaBlock):
-  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full', vmf_k=10.0, mem_size=256):
+  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full', vmf_k=10.0, mem_size=256, anneal_k=0.00015, anneal_b=6.25, eps=1e-5):
     super(vMFLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full')
     
     self.rec_network = nn.Sequential(
@@ -487,6 +487,13 @@ class vMFLunaBlock(LunaBlock):
     self.prior_mu = nn.Parameter(torch.randn(1, 1, mem_size, hidden_dim), requires_grad=True)
     nn.init.normal_(self.prior_mu)
     self.prior_mu.data = self.prior_mu.data / torch.norm(self.prior_mu, dim=-1, keepdim=True)
+    
+    self.number_of_calls = 0
+    self.anneal_k = anneal_k
+    self.anneal_b = anneal_b
+    
+  def anneal_rate(self):
+    return 1/(1+math.exp(-self.anneal_k*self.number_of_calls+self.anneal_b))
     
   def sample(self, recognized, rejection_sampling_factor=10):
     v = torch.randn_like(recognized, device=self.vmf_k.device)[..., :-1]
@@ -545,7 +552,8 @@ class vMFLunaBlock(LunaBlock):
     sample = self.sample(recognized)
     
     #Compute KLD
-    kld = self.kld(sample)
+    kld = self.kld(sample) * self.anneal_rate()
+    self.number_of_calls += 1
     losses.append(kld)
     
     #Use sampled vectors as a memory
