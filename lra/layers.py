@@ -529,7 +529,7 @@ class vMFLunaBlock(LunaBlock):
     e1mu = torch.zeros_like(recognized);  e1mu[..., 0] = 1.0
     e1mu = e1mu - recognized
     e1mu = e1mu / torch.norm(e1mu, dim=-1, keepdim=True)
-    U = torch.eye(d)[None, None, ...] - 2 * torch.einsum('...md,...mt->...mdt', e1mu, e1mu)
+    U = torch.eye(d, device=self.vmf_k.device)[None, None, ...] - 2 * torch.einsum('...md,...mt->...mdt', e1mu, e1mu)
     samples = torch.einsum('...mtd,...md->...mt',U,samples)
     
     return samples
