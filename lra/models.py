@@ -268,7 +268,10 @@ class LraLightningWrapper(pl.LightningModule):
     
     def log_self_params(self, artifacts, types=('tensor_slice', 'hist')):
         for name, param in self.model.named_parameters():
-            artifact = self.prepare_tensor_for_viz(param.data)
+            p = param.data.squeeze()
+            while len(p.shape) < 2:
+                p = p.unsqueeze(0)
+            artifact = self.prepare_tensor_for_viz()
             artifacts.append(
                 Artifact(artifact, name, types, self.model.logging_frequency)
             )

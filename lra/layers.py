@@ -561,7 +561,7 @@ class vMFLunaBlock(LunaBlock):
     if mask is not None:
         unpacked = unpacked * mask.unsqueeze(-1)
     q = self.layernorm_input(input + unpacked)
-    m = self.layernorm_mem(memory + packed)
+    m = self.layernorm_mem(memory + sample)
 
     y = self.ffn(q)
     if mask is not None:
