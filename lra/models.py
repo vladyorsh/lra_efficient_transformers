@@ -67,7 +67,7 @@ class vMFLunaClassifier(LunaClassifier):
     nn.init.normal_(self.mem)
     
 class SmoothLunaClassifier(LunaClassifier):
-  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, logging_frequency=1000, mem_size=256, kernel=(4, 1), stride=(1, 1)):
+  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, logging_frequency=1000, mem_size=256, shared_att='full', kernel=(4, 1), stride=(1, 1)):
     super(SmoothLunaClassifier, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, logging_frequency)
 
     self.encoder     = Encoder(SmoothLunaBlock, num_blocks, hidden_dim, qkv_dim, mlp_dim, num_heads, internal_dropout_rate, affine, logging_frequency, shared_att, kernel, stride)
