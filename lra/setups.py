@@ -4,9 +4,9 @@ CLS_SETUP = {
     'full_batch_size' : 32,
     'max_length' : 4000,
     
-    'lr' : 0.05,
-    'weight_decay' : 0.1,
-    'steps' : 20000,
+    'lr' : 0.005, #Original LRA value 0.05
+    'weight_decay' : 0.01, #Original LRA value 0.1
+    'steps' : 25000, #Original LRA value 20k
     'schedule' : lambda: get_sqrt_schedule(warmup_steps=8000),
     'eval_period' : 200,
     
