@@ -8,7 +8,7 @@ CLS_SETUP = {
     'weight_decay' : 0.01, #Original LRA value 0.1
     'steps' : 25000, #Original LRA value 20k
     'schedule' : lambda: get_sqrt_schedule(warmup_steps=8000),
-    'eval_period' : 200,
+    'eval_period' : 400,
     
     'classes' : 2,
     'hidden_dim' : 256,
