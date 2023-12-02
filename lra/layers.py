@@ -390,7 +390,7 @@ class SmoothLunaBlock(LunaBlock):
   def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full', kernel=4, stride=1, padding=None):
     super(SmoothLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency, shared_att)
     if padding is None:
-        padding = 'same' if stride[0] == 1 else 0
+        padding = 'same' if stride == 1 else 0
             
     self.attention = SmoothingAttention(hidden_dim, qkv_dim, num_heads, dropout_rate, affine, (kernel, 1), (stride, 1), padding)
       
