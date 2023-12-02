@@ -53,6 +53,7 @@ def get_model(args, encoder, setup, max_length):
     SELFLUNA_MODELS= { 'classification' : SelfLunaClassifier,     'matching' : SelfLunaMatcher }
     BLUNA_MODELS = { 'classification' : BLunaClassifier, }
     VMFLUNA_MODELS ={ 'classification' : vMFLunaClassifier, }
+    SMOOTHLUNA_MODELS = { 'classification' : SmoothLunaClassifier, }
     
     REGISTERED_MODELS = {
         'base' : BASE_MODELS,
@@ -61,6 +62,7 @@ def get_model(args, encoder, setup, max_length):
         'selfluna' : SELFLUNA_MODELS,
         'bluna' : BLUNA_MODELS,
         'vmfluna' : VMFLUNA_MODELS,
+        'smoothluna' : SMOOTHLUNA_MODELS,
     }
     
     ADDITIONAL_MODEL_ARGS = {
@@ -69,6 +71,7 @@ def get_model(args, encoder, setup, max_length):
         'selfluna'  : ['mem_size'],
         'bluna'     : ['mem_size', 'weibull_k', 'gamma_beta', 'prior_hidden_size', 'anneal_k', 'anneal_b', 'eps'],
         'vmfluna'   : ['mem_size', 'vmf_k' ],
+        'smoothluna': ['mem_size', 'kernel', 'stride']
     }
     
     task = 'classification' if args.task in { 'classification', 'listops' } else 'matching'
@@ -238,6 +241,10 @@ if __name__ == "__main__":
     parser.add_argument('--eps', help='fudge', type=float, default=1e-5)
     
     parser.add_argument('--vmf_k', help='vMF kappa parameter', type=float, default=10.0)
+    
+    parser.add_argument('--kernel', help='Convolution kernell size', type=int, default=4)
+    parser.add_argument('--stride', help='Convolution stride', type=int, default=1)
+    
         
     args = parser.parse_args()
     for i in range(args.num_repeats):
