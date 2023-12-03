@@ -8,7 +8,7 @@ from .utils import Artifact
 
 #Ordinary Transformer layers
 class TEmbedding(nn.Module):
-  def __init__(self, num_embeddings, hidden_dim, seq_length, padding_idx, use_cls):
+  def __init__(self, num_embeddings, hidden_dim, seq_length, padding_idx=0, use_cls):
     super(TEmbedding, self).__init__()
     
     self.num_embeddings = num_embeddings
