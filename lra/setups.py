@@ -7,8 +7,8 @@ CLS_SETUP = {
     'lr' : 0.005, #Original LRA value 0.05
     'weight_decay' : 0.01, #Original LRA value 0.1
     'steps' : 25000, #Original LRA value 20k
-    'schedule' : lambda: get_sqrt_schedule(warmup_steps=8000),
-    'eval_period' : 400,
+    'schedule' : get_triangle_schedule(10000, 25000), #Original LRA schedule: lambda: get_sqrt_schedule(warmup_steps=8000), #Note that this schedule doesn't provide the 1.0 multiplier
+    'eval_period' : 500,
     
     'classes' : 2,
     'hidden_dim' : 256,
