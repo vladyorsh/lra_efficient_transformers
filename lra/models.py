@@ -70,7 +70,7 @@ class SmoothLunaClassifier(LunaClassifier):
   def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, logging_frequency=1000, mem_size=256, shared_att='full', kernel=(4, 1), stride=(1, 1), parallel_blocks=False):
     super(SmoothLunaClassifier, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, logging_frequency)
 
-    block = SmoothLunaBlock if not parallel_blocks else ParallelSmoothLunaBLock
+    block = SmoothLunaBlock if not parallel_blocks else ParallelSmoothLunaBlock
     self.encoder     = Encoder(block, num_blocks, hidden_dim, qkv_dim, mlp_dim, num_heads, internal_dropout_rate, affine, logging_frequency, shared_att, kernel, stride)
     self.mem         = nn.Parameter(torch.empty(1, mem_size, hidden_dim), requires_grad=True)
     nn.init.normal_(self.mem)
