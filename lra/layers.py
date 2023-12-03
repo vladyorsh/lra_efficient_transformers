@@ -17,10 +17,12 @@ class TEmbedding(nn.Module):
     self.padding_idx = padding_idx
 
     self.embedding = nn.Embedding(num_embeddings, hidden_dim, padding_idx)
-    nn.init.normal_(self.embedding.weight, std = 1 / math.sqrt(2))
     self.pos_embeds  = nn.Parameter(torch.zeros(1, self.seq_length, self.hidden_dim))
-    nn.init.normal_(self.pos_embeds, std = 1 / math.sqrt(2)) #Since we use abs embeddings, we keep the output std = 1.0
-
+    
+    #Uncomment if pos embeds are initialized with normal 
+    #nn.init.normal_(self.embedding.weight, std = 1 / math.sqrt(2))
+    #nn.init.normal_(self.pos_embeds, std = 1 / math.sqrt(2)) #Since we use abs embeddings, we keep the output std = 1.0    
+    
     self.cls = None
     if use_cls:
         self.cls = nn.Parameter(torch.zeros(1, 1, self.hidden_dim))
