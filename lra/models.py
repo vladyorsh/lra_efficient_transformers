@@ -24,7 +24,7 @@ class ClassificationTransformer(nn.Module):
   def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000):
     super(ClassificationTransformer, self).__init__()
     
-    self.embed_layer = TEmbedding(num_embeddings, hidden_dim, seq_len, use_cls)
+    self.embed_layer = TEmbedding(num_embeddings, hidden_dim, seq_len, use_cls=use_cls)
     self.encoder     = Encoder(TBlock, num_blocks, hidden_dim, qkv_dim, mlp_dim, num_heads, internal_dropout_rate, affine, logging_frequency)
     self.classifier  = TClassifier(classes, hidden_dim, mlp_dim, output_dropout_rate, affine, use_cls)
     self.logging_frequency = logging_frequency
