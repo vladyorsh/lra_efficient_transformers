@@ -4,7 +4,7 @@ import torch.nn as nn
 import math
 import einops
 
-from .utils import Artifact
+from .utils import Artifact 
 
 #Ordinary Transformer layers
 class TEmbedding(nn.Module):
@@ -35,7 +35,7 @@ class TEmbedding(nn.Module):
     return embed, mask
 
 class TAttention(nn.Module):
-  def __init__(self, hidden_dim, qkv_dim, num_heads, dropout_rate, affine=False):
+  def __init__(self, hidden_dim, qkv_dim, num_heads, dropout_rate, affine=False, alibi=True):
     super(TAttention, self).__init__()
     self.hidden_dim=hidden_dim
     self.qkv_dim   =qkv_dim
@@ -52,6 +52,12 @@ class TAttention(nn.Module):
     self.lin = nn.Linear(self.qkv_dim, self.hidden_dim, bias=affine)
 
     self.dropout = nn.Dropout(dropout_rate)
+    
+    self.alibi = True
+    self.alibi_values = None
+    
+  def init_alibi(self):
+    
 
   def split_heads(self, x):
     new_shape = x.shape[:-1] + (self.num_heads, self.head_dim)
@@ -409,6 +415,39 @@ class SmoothLunaBlock(LunaBlock):
             self.attention_unpack.lin = self.attention.lin
       
 
+class ParallelSmoothLunaBlock(SmoothLunaBlock):
+    def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full', kernel=4, stride=1, padding=None):
+        super(ParallelSmoothLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency, shared_att, kernel, stride, padding)
+    
+    def forward(self, input, memory, mask=None, losses=[], artifacts=[]):
+        x = self.layernorm_input(input)
+        m = self.layernorm_mem(memory)
+        
+        packed, packed_att     = self.attention(m, x, x, k_mask=mask)
+        unpacked, unpacked_att = self.attention_unpack(x, packed, packed, q_mask=mask)
+        
+        if mask is not None:
+            unpacked = unpacked * mask.unsqueeze(-1)
+            
+        y = self.ffn(x)
+        
+        q = input + unpacked + y
+        m = memory+ packed
+     
+        if mask is not None:
+            q = q * mask.unsqueeze(-1)
+        
+        artifacts.append( (
+        Artifact(packed[0], 'packed', ('tensor_slice', 'hist'), self.logging_frequency),
+        Artifact(unpacked[0], 'unpacked', ('tensor_slice', 'hist'), self.logging_frequency),
+        Artifact(packed_att[0], 'packed_att_logits', 'tensor_stack', self.logging_frequency),
+        Artifact(unpacked_att[0], 'unpacked_att_logits', 'tensor_stack', self.logging_frequency),
+        Artifact(memory[0], 'input_memory', ('tensor_slice', 'hist'), self.logging_frequency),
+        ) )
+
+        return q, m
+    
+            
 class PreLunaBlock(LunaBlock):
   def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full'):
     super(PreLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency)

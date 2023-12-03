@@ -71,7 +71,7 @@ def get_model(args, encoder, setup, max_length):
         'selfluna'  : ['mem_size'],
         'bluna'     : ['mem_size', 'weibull_k', 'gamma_beta', 'prior_hidden_size', 'anneal_k', 'anneal_b', 'eps'],
         'vmfluna'   : ['mem_size', 'vmf_k' ],
-        'smoothluna': ['mem_size', 'kernel', 'stride']
+        'smoothluna': ['mem_size', 'kernel', 'stride', 'parallel_blocks']
     }
     
     task = 'classification' if args.task in { 'classification', 'listops' } else 'matching'
@@ -244,6 +244,7 @@ if __name__ == "__main__":
     
     parser.add_argument('--kernel', help='Convolution kernell size', type=int, default=4)
     parser.add_argument('--stride', help='Convolution stride', type=int, default=1)
+    parser.add_argument('--parallel_blocks', help='Use alternatiive block configuration with MLP and attentions running in parallel and summing at the block end', type=bool_type, default=False)
     
         
     args = parser.parse_args()
