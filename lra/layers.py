@@ -334,10 +334,13 @@ class LunaBlock(TBlock):
 
     return q, m
 
-class SmoothingAttention(TAttention):
-  def __init__(self, hidden_dim, qkv_dim, num_heads, dropout_rate, affine=False, kernel=(4, 1), stride=(1, 1), padding='zeros'):
-    super(SmoothingAttention, self).__init__(hidden_dim, qkv_dim, num_heads, dropout_rate, affine)
-    self.smoothen = nn.Conv2d(num_heads, num_heads, kernel, stride, groups=num_heads, bias=False, padding=padding)
+class ConvAttention(TAttention):
+  def __init__(self, hidden_dim, qkv_dim, num_heads, dropout_rate, affine=False, kernel=(4, 1), stride=(1, 1), padding='zeros', pool=False):
+    super(ConvAttention, self).__init__(hidden_dim, qkv_dim, num_heads, dropout_rate, affine)
+    if not pool:
+        self.kernel = nn.Conv2d(num_heads, num_heads, kernel, stride, groups=num_heads, bias=False, padding=padding)
+    else:
+        self.kernel = nn.MaxPool2d(kernel, stride, padding=0)
 
   def forward(self, q, k=None, v=None, q_mask=None, k_mask=None, losses=[]):
     if k is None:
@@ -353,7 +356,7 @@ class SmoothingAttention(TAttention):
     q = torch.mul(q, 1. / torch.sqrt(torch.tensor(self.head_dim)))
     
     o_k, o_v = k, v
-    k, v = self.smoothen(k), self.smoothen(v)
+    k, v = self.kernel(k), self.kernel(v)
     shape_change = (o_k.shape != k.shape) or (o_v.shape != v.shape)
     
     logits_raw = torch.einsum('bhqd,bhkd->bhqk', q, k)
@@ -384,15 +387,13 @@ class SmoothingAttention(TAttention):
 
     return out, logits_raw
     
-    
-    
-class SmoothLunaBlock(LunaBlock):
-  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full', kernel=4, stride=1, padding=None):
-    super(SmoothLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency, shared_att)
+class ConvLunaBlock(LunaBlock):
+  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full', kernel=4, stride=1, padding=None, pool=False):
+    super(ConvLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency, shared_att)
     if padding is None:
         padding = 'same' if stride == 1 else 0
             
-    self.attention = SmoothingAttention(hidden_dim, qkv_dim, num_heads, dropout_rate, affine, (kernel, 1), (stride, 1), padding)
+    self.attention = ConvAttention(hidden_dim, qkv_dim, num_heads, dropout_rate, affine, (kernel, 1), (stride, 1), padding, pool)
       
     if shared_att == 'full':
       shared_att == 'qkvo'
@@ -408,39 +409,6 @@ class SmoothLunaBlock(LunaBlock):
         if 'o' in shared_att:
             self.attention_unpack.lin = self.attention.lin
       
-
-class ParallelSmoothLunaBlock(SmoothLunaBlock):
-    def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full', kernel=4, stride=1, padding=None):
-        super(ParallelSmoothLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency, shared_att, kernel, stride, padding)
-    
-    def forward(self, input, memory, mask=None, losses=[], artifacts=[]):
-        x = self.layernorm_input(input)
-        m = self.layernorm_mem(memory)
-        
-        packed, packed_att     = self.attention(m, x, x, k_mask=mask)
-        unpacked, unpacked_att = self.attention_unpack(x, packed, packed, q_mask=mask)
-        
-        if mask is not None:
-            unpacked = unpacked * mask.unsqueeze(-1)
-            
-        y = self.ffn(x)
-        
-        q = input + unpacked + y
-        m = memory+ packed
-     
-        if mask is not None:
-            q = q * mask.unsqueeze(-1)
-        
-        artifacts.append( (
-        Artifact(packed[0], 'packed', ('tensor_slice', 'hist'), self.logging_frequency),
-        Artifact(unpacked[0], 'unpacked', ('tensor_slice', 'hist'), self.logging_frequency),
-        Artifact(packed_att[0], 'packed_att_logits', 'tensor_stack', self.logging_frequency),
-        Artifact(unpacked_att[0], 'unpacked_att_logits', 'tensor_stack', self.logging_frequency),
-        Artifact(memory[0], 'input_memory', ('tensor_slice', 'hist'), self.logging_frequency),
-        ) )
-
-        return q, m
-    
             
 class PreLunaBlock(LunaBlock):
   def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full'):
