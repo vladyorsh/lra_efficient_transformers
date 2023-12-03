@@ -250,7 +250,7 @@ class TBlock(nn.Module):
     return x
 
 class TClassifier(nn.Module):
-  def __init__(self, classes, hidden_dim, inter_dim, dropout_rate, affine=False):
+  def __init__(self, classes, hidden_dim, inter_dim, dropout_rate, affine=False, use_cls=True):
     super(TClassifier, self).__init__()
     self.classes   = classes
     self.use_cls   = use_cls
