@@ -35,7 +35,7 @@ class TEmbedding(nn.Module):
     return embed, mask
 
 class TAttention(nn.Module):
-  def __init__(self, hidden_dim, qkv_dim, num_heads, dropout_rate, affine=False, alibi=True):
+  def __init__(self, hidden_dim, qkv_dim, num_heads, dropout_rate, affine=False):
     super(TAttention, self).__init__()
     self.hidden_dim=hidden_dim
     self.qkv_dim   =qkv_dim
@@ -52,12 +52,6 @@ class TAttention(nn.Module):
     self.lin = nn.Linear(self.qkv_dim, self.hidden_dim, bias=affine)
 
     self.dropout = nn.Dropout(dropout_rate)
-    
-    self.alibi = True
-    self.alibi_values = None
-    
-  def init_alibi(self):
-    
 
   def split_heads(self, x):
     new_shape = x.shape[:-1] + (self.num_heads, self.head_dim)
