@@ -67,7 +67,7 @@ def get_model(args, encoder, setup, max_length):
         'luna'      : ['mem_size'],
         'preluna'   : ['mem_size'],
         'bluna'     : ['mem_size', 'weibull_k', 'gamma_beta', 'prior_hidden_size', 'anneal_k', 'anneal_b', 'eps'],
-        'vmfluna'   : ['mem_size', 'vmf_k' ],
+        'vmfluna'   : ['mem_size', 'vmf_k', 'anneal_k', 'anneal_b', 'eps' ],
         'convluna'  : ['mem_size', 'kernel', 'stride', 'pool']
     }
     
