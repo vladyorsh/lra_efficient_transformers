@@ -50,7 +50,6 @@ def get_model(args, encoder, setup, max_length):
     BASE_MODELS = { 'classification' : ClassificationTransformer, 'matching' : MatchingTransformer }
     LUNA_MODELS = { 'classification' : LunaClassifier,            'matching' : LunaMatcher }
     PRELUNA_MODELS = { 'classification' : PreLunaClassifier,      'matching' : PreLunaMatcher }
-    SELFLUNA_MODELS= { 'classification' : SelfLunaClassifier,     'matching' : SelfLunaMatcher }
     BLUNA_MODELS = { 'classification' : BLunaClassifier, }
     VMFLUNA_MODELS ={ 'classification' : vMFLunaClassifier, }
     CONVLUNA_MODELS = { 'classification' : ConvLunaClassifier, }
@@ -59,7 +58,6 @@ def get_model(args, encoder, setup, max_length):
         'base' : BASE_MODELS,
         'luna' : LUNA_MODELS,
         'preluna' : PRELUNA_MODELS,
-        'selfluna' : SELFLUNA_MODELS,
         'bluna' : BLUNA_MODELS,
         'vmfluna' : VMFLUNA_MODELS,
         'convluna' : CONVLUNA_MODELS,
@@ -68,7 +66,6 @@ def get_model(args, encoder, setup, max_length):
     ADDITIONAL_MODEL_ARGS = {
         'luna'      : ['mem_size'],
         'preluna'   : ['mem_size'],
-        'selfluna'  : ['mem_size'],
         'bluna'     : ['mem_size', 'weibull_k', 'gamma_beta', 'prior_hidden_size', 'anneal_k', 'anneal_b', 'eps'],
         'vmfluna'   : ['mem_size', 'vmf_k' ],
         'convluna'  : ['mem_size', 'kernel', 'stride', 'pool']
@@ -91,6 +88,7 @@ def get_model(args, encoder, setup, max_length):
             internal_dropout_rate=setup['internal_dropout_rate'],
             output_dropout_rate=setup['output_dropout_rate'],
             affine=args.biases,
+            use_cls=args.use_cls,
             logging_frequency=args.logging_frequency,
             ** additional_args
         ),
@@ -232,6 +230,7 @@ if __name__ == "__main__":
     parser.add_argument('--mem_size', help='memory-augmented models memory size', type=int, default=256)
     parser.add_argument('--num_repeats', help='how many times to repeat the experiment', type=int, default=1)
     parser.add_argument('--beta_2', help='AdamW beta_2 parameter', type=float, default=0.999)
+    parser.add_argument('--use_cls', help='Use CLS token to represent input or average pooling instead', type=bool_type, default=True)
     
     parser.add_argument('--weibull_k', help='Weibull dist K parameter', type=float, default=10.0)
     parser.add_argument('--gamma_beta', help='Gamma prior beta parameter', type=float, default=1e-4)

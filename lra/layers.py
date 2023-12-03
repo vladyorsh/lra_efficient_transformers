@@ -8,7 +8,7 @@ from .utils import Artifact
 
 #Ordinary Transformer layers
 class TEmbedding(nn.Module):
-  def __init__(self, num_embeddings, hidden_dim, seq_length=1024, padding_idx=0):
+  def __init__(self, num_embeddings, hidden_dim, seq_length, padding_idx, use_cls):
     super(TEmbedding, self).__init__()
     
     self.num_embeddings = num_embeddings
@@ -18,19 +18,22 @@ class TEmbedding(nn.Module):
 
     self.embedding = nn.Embedding(num_embeddings, hidden_dim, padding_idx)
     self.pos_embeds  = nn.Parameter(torch.zeros(1, self.seq_length, self.hidden_dim))
+    nn.init.normal_(self.pos_embeds)
 
-    self.cls = nn.Parameter(torch.zeros(1, 1, self.hidden_dim))
-    nn.init.xavier_uniform_(self.cls)
+    self.cls = None
+    if use_cls:
+        self.cls = nn.Parameter(torch.zeros(1, 1, self.hidden_dim))
+        nn.init.xavier_uniform_(self.cls)
 
   def forward(self, input, mask=None):
     batch_size, seq_len = input.shape
     
     embed = self.embedding(input)
     embed = embed + self.pos_embeds
-    embed = torch.cat([ self.cls.expand(batch_size, 1, -1), embed ], axis=1)
-    
-    if mask is not None:
-        mask = nn.functional.pad(mask, (1, 0), value=1.0)
+    if self.cls is not None:
+        embed = torch.cat([ self.cls.expand(batch_size, 1, -1), embed ], axis=1)
+        if mask is not None:
+            mask = nn.functional.pad(mask, (1, 0), value=1.0)
 
     return embed, mask
 
@@ -250,6 +253,7 @@ class TClassifier(nn.Module):
   def __init__(self, classes, hidden_dim, inter_dim, dropout_rate, affine=False):
     super(TClassifier, self).__init__()
     self.classes   = classes
+    self.use_cls   = use_cls
 
     self.layernorm = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
     self.dropout   = nn.Dropout(dropout_rate)
@@ -263,7 +267,10 @@ class TClassifier(nn.Module):
     if mask is not None:
         x = x * mask.unsqueeze(-1)
     x = self.layernorm(x)
-    x = x[:, 0, :]
+    if self.use_cls:
+        x = x[..., 0, :]
+    else:
+        x = x.mean(dim=-2)
     x = self.dropout(x)
 
     x = self.ffn(x)
@@ -272,9 +279,10 @@ class TClassifier(nn.Module):
     return logits
 
 class DualClassifier(nn.Module):
-  def __init__(self, classes, hidden_dim, inter_dim, affine=False):
+  def __init__(self, classes, hidden_dim, inter_dim, affine, use_cls):
     super(DualClassifier, self).__init__()
     self.classes   = classes
+    self.use_cls   = use_cls
 
     self.ffn       = nn.Sequential(
         nn.Linear(hidden_dim * 2, inter_dim, bias=affine), nn.ReLU(),
@@ -285,7 +293,10 @@ class DualClassifier(nn.Module):
   def forward(self, x):
     emb_1, emb_2 = x
     x = torch.cat([ emb_1, emb_2 ], dim=-1)
-    x = x[:, 0, :]
+    if self.use_cls:
+        x = x[..., 0, :]
+    else:
+        x = x.mean(dim=-2)
     x = self.ffn(x)
     logits = self.output(x)
 
@@ -446,63 +457,7 @@ class PreLunaBlock(LunaBlock):
     artifacts.append(to_append)
 
     return q, m
-    
-class SelfLunaBlock(PreLunaBlock):
-  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full'):
-    super(SelfLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency)
-    
-    self.layernorm_packed  = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
-    if shared_att == 'full':
-        self.attention_self = self.attention
-    else:
-        self.attention_self = TAttention(hidden_dim, qkv_dim, num_heads, dropout_rate)
-        if shared_att is not None:
-            if 'q' in shared_att:
-                self.attention_self.q = self.attention.q
-            if 'k' in shared_att:
-                self.attention_self.k = self.attention.k
-            if 'v' in shared_att:
-                self.attention_self.v = self.attention.v
-            if 'o' in shared_att:
-                self.attention_self.lin = self.attention.lin
-    #self.layernorm_self = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
-
-  def forward(self, input, memory, mask=None, losses=[], artifacts=[]):
-    to_append = ()
-  
-    x = self.layernorm_input(input)
-    m = self.layernorm_mem(memory)
-    
-    packed, packed_att = self.attention(m, x, x, k_mask=mask)
-    to_append = to_append + (Artifact(packed[0], 'packed', ('tensor_slice', 'hist'), self.logging_frequency),)
-    
-    packed = self.layernorm_packed(packed)
-    unpacked, unpacked_att = self.attention_unpack(x, packed, packed, q_mask=mask)
-    to_append = to_append + (Artifact(unpacked[0], 'unpacked', ('tensor_slice', 'hist'), self.logging_frequency),)
-    
-    self_packed, self_att = self.attention_self(packed, packed, packed)
-    to_append = to_append + (Artifact(self_packed[0], 'self_packed', ('tensor_slice', 'hist'), self.logging_frequency),)
-    
-    if mask is not None:
-        unpacked = unpacked * mask.unsqueeze(-1)
-    q = input + unpacked
-    m = memory + self_packed
-
-    y = self.ffn(self.layernorm_inter(q))
-    if mask is not None:
-        y = y * mask.unsqueeze(-1)
-    q = q + y
-    
-    to_append = to_append + (
-    Artifact(packed_att[0], 'packed_att_logits', 'tensor_stack', self.logging_frequency),
-    Artifact(unpacked_att[0], 'unpacked_att_logits', 'tensor_stack', self.logging_frequency),
-    Artifact(self_att[0], 'self_att_logits', 'tensor_stack', self.logging_frequency),
-    Artifact(memory[0], 'input_memory', ('tensor_slice', 'hist'), self.logging_frequency),
-    )
-    artifacts.append(to_append)
-
-    return q, m
-    
+        
 class BLunaBlock(TBlock):
   def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full', weibull_k=10.0, gamma_beta=1e-4, prior_hidden_size=32, anneal_k=0.00015, anneal_b=6.25, eps=1e-5):
     super(BLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency)
