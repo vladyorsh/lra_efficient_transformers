@@ -29,6 +29,8 @@ def get_sqrt_schedule(warmup_steps):
 def get_triangle_schedule(warmup_steps, total_steps):
     def lr_schedule(step):
         return 1.0 * (step / warmup_steps if step < warmup_steps else (total_steps - step) / (total_steps - warmup_steps))
+        
+    return lr_schedule
   
 class Artifact:
     def __init__(self, artifact, name, type, log_every):
