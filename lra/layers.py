@@ -14,7 +14,7 @@ class ScaleNorm(nn.Module):
         self.dim = dim
         self.eps = eps
         self.affine = elementwise_affine
-        if affine:
+        if elementwise_affine:
             self.scalar = nn.Parameter(torch.Tensor(1))
         else:
             self.register_parameter('scalar', None)
