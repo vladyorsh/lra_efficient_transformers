@@ -228,6 +228,7 @@ if __name__ == "__main__":
     parser.add_argument('--mem_size', help='memory-augmented models memory size', type=int, default=256)
     parser.add_argument('--num_repeats', help='how many times to repeat the experiment', type=int, default=1)
     parser.add_argument('--beta_2', help='AdamW beta_2 parameter', type=float, default=0.999)
+    
     parser.add_argument('--use_cls', help='Use CLS token to represent input or average pooling instead', type=bool_type, default=True)
     parser.add_argument('--norm_type', help='Normalization layer type -- scalenorm, layernorm or (not implemented) batchnorm', type=str, default='layernorm')
     

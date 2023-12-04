@@ -26,7 +26,7 @@ class ClassificationTransformer(nn.Module):
     
     self.embed_layer = TEmbedding(num_embeddings, hidden_dim, seq_len, use_cls=use_cls)
     self.encoder     = Encoder(TBlock, num_blocks, hidden_dim, qkv_dim, mlp_dim, num_heads, internal_dropout_rate, affine, logging_frequency, norm_type)
-    self.classifier  = TClassifier(classes, hidden_dim, mlp_dim, output_dropout_rate, affine, use_cls)
+    self.classifier  = TClassifier(classes, hidden_dim, mlp_dim, output_dropout_rate, affine, use_cls, norm_type)
     self.logging_frequency = logging_frequency
 
   def forward(self, inputs, mask=None):
@@ -40,8 +40,8 @@ class ClassificationTransformer(nn.Module):
     return x, additional_losses, artifacts
 
 class LunaClassifier(ClassificationTransformer):
-  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000, mem_size=256, shared_att='full'):
-    super(LunaClassifier, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, use_cls, logging_frequency)
+  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000, norm_type='layernorm', mem_size=256, shared_att='full'):
+    super(LunaClassifier, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, use_cls, logging_frequency, norm_type)
 
     self.encoder     = Encoder(LunaBlock, num_blocks, hidden_dim, qkv_dim, mlp_dim, num_heads, internal_dropout_rate, affine, logging_frequency, norm_type, shared_att)
     self.mem         = nn.Parameter(torch.empty(1, mem_size, hidden_dim), requires_grad=True)

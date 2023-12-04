@@ -6,6 +6,8 @@ import einops
 
 from .utils import Artifact 
 
+#Copy-paste from
+#https://github.com/facebookresearch/mega/blob/main/fairseq/modules/scale_norm.py
 class ScaleNorm(nn.Module):
     def __init__(self, dim, eps=1e-6, elementwise_affine=True):
         super().__init__()
