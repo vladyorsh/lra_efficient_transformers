@@ -134,6 +134,14 @@ class TAttention(nn.Module):
 
     return out, logits_raw
     
+
+def get_norm(norm_type, dim, dim_size, eps, affine):
+    if norm_type == 'layernorm':
+        return nn.LayerNorm(dim_size, eps=eps, elementwise_affine=affine)
+    elif norm_type == 'scalenorm':
+        return ScaleNorm(dim, eps=eps, elementwise_affine=affine)
+    else:
+        raise ValueError(f'Norm type {norm_type} is not supported')
     
 @torch.jit.script
 def reparameterize_noise(logprobs, weibull_k, eps):
@@ -251,17 +259,10 @@ class TBlock(nn.Module):
     self.hidden_dim = hidden_dim
     self.qkv_dim  = qkv_dim
     self.mlp_dim  = mlp_dim
-    
-    Norm = None
-    if norm_type == 'layernorm':
-        Norm = nn.LayerNorm
-    elif norm_type == 'scalenorm':
-        Norm = ScaleNorm
-    else:
-        raise ValueError(f'Norm type {norm_type} is not supported')
 
-    self.norm_input = Norm(hidden_dim, eps=1e-6, elementwise_affine=affine)
-    self.norm_inter = Norm(hidden_dim, eps=1e-6, elementwise_affine=affine)
+    self.norm_type  = norm_type
+    self.norm_input = get_norm(norm_type, -1, self.hidden_dim, 1e-6, affine)
+    self.norm_inter = get_norm(norm_type, -1, self.hidden_dim, 1e-6, affine)
 
     self.attention = TAttention(hidden_dim, qkv_dim, num_heads, dropout_rate, affine)
 
@@ -269,7 +270,6 @@ class TBlock(nn.Module):
         nn.Linear(hidden_dim, mlp_dim, bias=affine), nn.GELU(), nn.Dropout(dropout_rate),
         nn.Linear(mlp_dim, hidden_dim, bias=affine), nn.Dropout(dropout_rate),
     )
-
 
   def forward(self, input, mask, losses=[], artifacts=[]):
     if mask is not None:
@@ -297,15 +297,7 @@ class TClassifier(nn.Module):
     self.classes   = classes
     self.use_cls   = use_cls
     
-    Norm = None
-    if norm_type == 'layernorm':
-        Norm = nn.LayerNorm
-    elif norm_type == 'scalenorm':
-        Norm = ScaleNorm
-    else:
-        raise ValueError(f'Norm type {norm_type} is not supported')
-
-    self.norm = Norm(hidden_dim, eps=1e-6, elementwise_affine=affine)
+    self.norm = get_norm(norm_type, -1, hidden_dim, 1e-6, affine)
     self.dropout   = nn.Dropout(dropout_rate)
 
     self.ffn       = nn.Sequential(
@@ -356,15 +348,7 @@ class LunaBlock(TBlock):
   def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, norm_type='layernorm', shared_att='full'):
     super(LunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency, norm_type)
     
-    Norm = None
-    if norm_type == 'layernorm':
-        Norm = nn.LayerNorm
-    elif norm_type == 'scalenorm':
-        Norm = ScaleNorm
-    else:
-        raise ValueError(f'Norm type {norm_type} is not supported')
-    
-    self.norm_mem = Norm(hidden_dim, eps=1e-6, elementwise_affine=affine)
+    self.norm_mem = get_norm(norm_type, -1, self.hidden_dim, 1e-6, affine)
 
     if shared_att == 'full':
         self.attention_unpack = self.attention
