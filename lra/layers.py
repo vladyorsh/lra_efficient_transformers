@@ -6,6 +6,34 @@ import einops
 
 from .utils import Artifact 
 
+class ScaleNorm(nn.Module):
+    def __init__(self, dim, eps=1e-6, elementwise_affine=True):
+        super().__init__()
+        self.dim = dim
+        self.eps = eps
+        self.affine = elementwise_affine
+        if affine:
+            self.scalar = nn.Parameter(torch.Tensor(1))
+        else:
+            self.register_parameter('scalar', None)
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        if self.affine:
+            nn.init.constant_(self.scalar, 1.0)
+
+    def forward(self, x):
+        mean_square = torch.mean(torch.square(x), dim=self.dim, keepdim=True)
+        if self.scalar is not None:
+            x = self.scalar * x
+
+        x = x * torch.rsqrt(mean_square + self.eps)
+        return x
+
+    def extra_repr(self) -> str:
+        return 'dim={dim}, eps={eps}, affine={affine}'.format(**self.__dict__)
+
 #Ordinary Transformer layers
 class TEmbedding(nn.Module):
   def __init__(self, num_embeddings, hidden_dim, seq_length, padding_idx=0, use_cls=True):
@@ -19,7 +47,7 @@ class TEmbedding(nn.Module):
     self.embedding = nn.Embedding(num_embeddings, hidden_dim, padding_idx)
     self.pos_embeds  = nn.Parameter(torch.zeros(1, self.seq_length, self.hidden_dim))
     
-    #Uncomment if pos embeds are initialized with normal 
+    #Uncomment if pos embeds are initialized with normal, but this tends to reduce the performance
     #nn.init.normal_(self.embedding.weight, std = 1 / math.sqrt(2))
     #nn.init.normal_(self.pos_embeds, std = 1 / math.sqrt(2)) #Since we use abs embeddings, we keep the output std = 1.0    
     
@@ -115,6 +143,7 @@ def KL_weibull_gamma(logprobs, gamma_alpha, gamma_beta, lpgamma, weibull_k, eps)
                              - gamma_beta * torch.exp(logprobs) + \
                              gamma_alpha * torch.log(gamma_beta + eps) - torch.lgamma(gamma_alpha + eps)).mean()
     
+#Check the correct KLD computation and addition
 class BAttention(TAttention):
   def __init__(self, hidden_dim, qkv_dim, num_heads, dropout_rate, affine=False, weibull_k=10.0, gamma_beta=1e-4, prior_hidden_size=32, anneal_k=0.00015, anneal_b=6.25, eps=1e-5):
     super(BAttention, self).__init__(hidden_dim, qkv_dim, num_heads, dropout_rate, affine)
@@ -213,16 +242,24 @@ class BAttention(TAttention):
     return out, logits_raw
 
 class TBlock(nn.Module):
-  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine=False, logging_frequency=1000):
+  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine=False, logging_frequency=1000, norm_type='layernorm'):
     super(TBlock, self).__init__()
     self.logging_frequency = logging_frequency
 
     self.hidden_dim = hidden_dim
     self.qkv_dim  = qkv_dim
     self.mlp_dim  = mlp_dim
+    
+    Norm = None
+    if norm_type == 'layernorm':
+        Norm = nn.LayerNorm
+    elif norm_type == 'scalenorm':
+        Norm = ScaleNorm
+    else:
+        raise ValueError(f'Norm type {norm_type} is not supported')
 
-    self.layernorm_input = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
-    self.layernorm_inter = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
+    self.norm_input = Norm(hidden_dim, eps=1e-6, elementwise_affine=affine)
+    self.norm_inter = Norm(hidden_dim, eps=1e-6, elementwise_affine=affine)
 
     self.attention = TAttention(hidden_dim, qkv_dim, num_heads, dropout_rate, affine)
 
@@ -235,7 +272,7 @@ class TBlock(nn.Module):
   def forward(self, input, mask, losses=[], artifacts=[]):
     if mask is not None:
         x = x * mask.unsqueeze(-1)
-    x = self.layernorm_input(input)
+    x = self.norm_input(input)
     x, att = self.attention(x, q_mask=mask, losses=losses)
     
     artifacts.append(
@@ -246,19 +283,27 @@ class TBlock(nn.Module):
     
     if mask is not None:
         x = x * mask.unsqueeze(-1)
-    y = self.layernorm_inter(x)
+    y = self.norm_inter(x)
     
     x = self.ffn(y) + x
 
     return x
 
 class TClassifier(nn.Module):
-  def __init__(self, classes, hidden_dim, inter_dim, dropout_rate, affine=False, use_cls=True):
+  def __init__(self, classes, hidden_dim, inter_dim, dropout_rate, affine=False, use_cls=True, norm_type='layernorm'):
     super(TClassifier, self).__init__()
     self.classes   = classes
     self.use_cls   = use_cls
+    
+    Norm = None
+    if norm_type == 'layernorm':
+        Norm = nn.LayerNorm
+    elif norm_type == 'scalenorm':
+        Norm = ScaleNorm
+    else:
+        raise ValueError(f'Norm type {norm_type} is not supported')
 
-    self.layernorm = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
+    self.norm = Norm(hidden_dim, eps=1e-6, elementwise_affine=affine)
     self.dropout   = nn.Dropout(dropout_rate)
 
     self.ffn       = nn.Sequential(
@@ -269,7 +314,7 @@ class TClassifier(nn.Module):
   def forward(self, x, mask=None):
     if mask is not None:
         x = x * mask.unsqueeze(-1)
-    x = self.layernorm(x)
+    x = self.norm(x)
     if self.use_cls:
         x = x[..., 0, :]
     else:
@@ -306,9 +351,18 @@ class DualClassifier(nn.Module):
     return logits
 
 class LunaBlock(TBlock):
-  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full'):
-    super(LunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency)
-    self.layernorm_mem = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
+  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, norm_type='layernorm', shared_att='full'):
+    super(LunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency, norm_type)
+    
+    Norm = None
+    if norm_type == 'layernorm':
+        Norm = nn.LayerNorm
+    elif norm_type == 'scalenorm':
+        Norm = ScaleNorm
+    else:
+        raise ValueError(f'Norm type {norm_type} is not supported')
+    
+    self.norm_mem = Norm(hidden_dim, eps=1e-6, elementwise_affine=affine)
 
     if shared_att == 'full':
         self.attention_unpack = self.attention
@@ -330,13 +384,13 @@ class LunaBlock(TBlock):
     unpacked, unpacked_att = self.attention_unpack(input, packed, packed, q_mask=mask)
     if mask is not None:
         unpacked = unpacked * mask.unsqueeze(-1)
-    q = self.layernorm_input(input + unpacked)
-    m = self.layernorm_mem(memory + packed)
+    q = self.norm_input(input + unpacked)
+    m = self.norm_mem(memory + packed)
 
     y = self.ffn(q)
     if mask is not None:
         y = y * mask.unsqueeze(-1)
-    q = self.layernorm_inter(q + y)
+    q = self.norm_inter(q + y)
     
     artifacts.append( (
     Artifact(packed[0], 'packed', ('tensor_slice', 'hist'), self.logging_frequency),
@@ -402,8 +456,8 @@ class ConvAttention(TAttention):
     return out, logits_raw
     
 class ConvLunaBlock(LunaBlock):
-  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full', kernel=4, stride=1, padding=None, pool=False):
-    super(ConvLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency, shared_att)
+  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, norm_type='layernorm', shared_att='full', kernel=4, stride=1, padding=None, pool=False):
+    super(ConvLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency, norm_type, shared_att)
     if padding is None:
         padding = 'same' if stride == 1 else 0
             
@@ -422,49 +476,10 @@ class ConvLunaBlock(LunaBlock):
             self.attention_unpack.v = self.attention.v
         if 'o' in shared_att:
             self.attention_unpack.lin = self.attention.lin
-      
-            
-class PreLunaBlock(LunaBlock):
-  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full'):
-    super(PreLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency)
-    self.layernorm_packed  = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
-
-  def forward(self, input, memory, mask=None, losses=[], artifacts=[]):
-    to_append = ()
-  
-    x = self.layernorm_input(input)
-    m = self.layernorm_mem(memory)
-    
-    packed, packed_att = self.attention(m, x, x, k_mask=mask)
-    to_append = to_append + (Artifact(packed[0], 'packed', ('tensor_slice', 'hist'), self.logging_frequency),)
-    
-    packed = packed + self.ffn(self.layernorm_packed(packed))
-    unpacked, unpacked_att = self.attention_unpack(x, packed, packed, q_mask=mask)
-    to_append = to_append + (Artifact(unpacked[0], 'unpacked', ('tensor_slice', 'hist'), self.logging_frequency),)
-    
-    if mask is not None:
-        unpacked = unpacked * mask.unsqueeze(-1)
-    q = input + unpacked
-    m = memory + packed
-
-    y = self.ffn(self.layernorm_inter(q))
-    if mask is not None:
-        y = y * mask.unsqueeze(-1)
-    q = q + y
-    
-    to_append = to_append + (
-    Artifact(packed_att[0], 'packed_att_logits', 'tensor_stack', self.logging_frequency),
-    Artifact(unpacked_att[0], 'unpacked_att_logits', 'tensor_stack', self.logging_frequency),
-    Artifact(memory[0], 'input_memory', ('tensor_slice', 'hist'), self.logging_frequency),
-    )
-    artifacts.append(to_append)
-
-    return q, m
-        
+              
 class BLunaBlock(TBlock):
-  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full', weibull_k=10.0, gamma_beta=1e-4, prior_hidden_size=32, anneal_k=0.00015, anneal_b=6.25, eps=1e-5):
-    super(BLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency)
-    self.layernorm_mem = nn.LayerNorm(hidden_dim, eps=1e-6, elementwise_affine=affine)
+  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, norm_type='layernorm', shared_att='full', weibull_k=10.0, gamma_beta=1e-4, prior_hidden_size=32, anneal_k=0.00015, anneal_b=6.25, eps=1e-5):
+    super(BLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency, norm_type, shared_att)
     self.attention = BAttention(hidden_dim, qkv_dim, num_heads, dropout_rate, affine, weibull_k, gamma_beta, prior_hidden_size, anneal_k, anneal_b, eps)
 
     if shared_att == 'full':
@@ -483,18 +498,17 @@ class BLunaBlock(TBlock):
 
   def forward(self, input, memory, mask=None, losses=[], artifacts=[]):
     
-    packed, packed_att = self.attention(memory, input, input, k_mask=mask)
-    #packed = self.ffn(packed)
-    unpacked, unpacked_att = self.attention_unpack(input, packed, packed, q_mask=mask)
+    packed, packed_att = self.attention(memory, input, input, k_mask=mask, losses=losses)
+    unpacked, unpacked_att = self.attention_unpack(input, packed, packed, q_mask=mask, losses=losses)
     if mask is not None:
         unpacked = unpacked * mask.unsqueeze(-1)
-    q = self.layernorm_input(input + unpacked)
-    m = self.layernorm_mem(memory + packed)
+    q = self.norm_input(input + unpacked)
+    m = self.norm_mem(memory + packed)
 
     y = self.ffn(q)
     if mask is not None:
         y = y * mask.unsqueeze(-1)
-    q = self.layernorm_inter(q + y)
+    q = self.norm_inter(q + y)
     
     artifacts.append( (
     Artifact(packed[0], 'packed', ('tensor_slice', 'hist'), self.logging_frequency),
@@ -507,8 +521,8 @@ class BLunaBlock(TBlock):
     return q, m
     
 class vMFLunaBlock(LunaBlock):
-  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, shared_att='full', vmf_k=10.0, mem_size=256, anneal_k=0.00015, anneal_b=6.25, eps=1e-5):
-    super(vMFLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency, shared_att)
+  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, norm_type='layernorm', shared_att='full', vmf_k=10.0, mem_size=256, anneal_k=0.00015, anneal_b=6.25, eps=1e-5):
+    super(vMFLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency, norm_type, shared_att)
     
     self.rec_network = nn.Sequential(
         nn.Linear(hidden_dim, hidden_dim),
@@ -594,13 +608,13 @@ class vMFLunaBlock(LunaBlock):
     unpacked, unpacked_att = self.attention_unpack(input, sample, sample, q_mask=mask)
     if mask is not None:
         unpacked = unpacked * mask.unsqueeze(-1)
-    q = self.layernorm_input(input + unpacked)
-    m = self.layernorm_mem(memory + sample)
+    q = self.norm_input(input + unpacked)
+    m = self.norm_mem(memory + sample)
 
     y = self.ffn(q)
     if mask is not None:
         y = y * mask.unsqueeze(-1)
-    q = self.layernorm_inter(q + y)
+    q = self.norm_inter(q + y)
     
     artifacts.append( (
     Artifact(packed[0], 'packed', ('tensor_slice', 'hist'), self.logging_frequency),

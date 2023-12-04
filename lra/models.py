@@ -21,11 +21,11 @@ class Encoder(nn.Module):
     return x
 
 class ClassificationTransformer(nn.Module):
-  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000):
+  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000, norm_type='layernorm'):
     super(ClassificationTransformer, self).__init__()
     
     self.embed_layer = TEmbedding(num_embeddings, hidden_dim, seq_len, use_cls=use_cls)
-    self.encoder     = Encoder(TBlock, num_blocks, hidden_dim, qkv_dim, mlp_dim, num_heads, internal_dropout_rate, affine, logging_frequency)
+    self.encoder     = Encoder(TBlock, num_blocks, hidden_dim, qkv_dim, mlp_dim, num_heads, internal_dropout_rate, affine, logging_frequency, norm_type)
     self.classifier  = TClassifier(classes, hidden_dim, mlp_dim, output_dropout_rate, affine, use_cls)
     self.logging_frequency = logging_frequency
 
@@ -43,7 +43,7 @@ class LunaClassifier(ClassificationTransformer):
   def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000, mem_size=256, shared_att='full'):
     super(LunaClassifier, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, use_cls, logging_frequency)
 
-    self.encoder     = Encoder(LunaBlock, num_blocks, hidden_dim, qkv_dim, mlp_dim, num_heads, internal_dropout_rate, affine, logging_frequency, shared_att)
+    self.encoder     = Encoder(LunaBlock, num_blocks, hidden_dim, qkv_dim, mlp_dim, num_heads, internal_dropout_rate, affine, logging_frequency, norm_type, shared_att)
     self.mem         = nn.Parameter(torch.empty(1, mem_size, hidden_dim), requires_grad=True)
     nn.init.normal_(self.mem)
     
@@ -59,39 +59,22 @@ class LunaClassifier(ClassificationTransformer):
     return x, losses, artifacts
     
 class vMFLunaClassifier(LunaClassifier):
-  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000, mem_size=256, shared_att='full', vmf_k=10.0):
-    super(vMFLunaClassifier, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, use_cls, logging_frequency)
+  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000, norm_type='layernorm', mem_size=256, shared_att='full', vmf_k=10.0):
+    super(vMFLunaClassifier, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, use_cls, logging_frequency, norm_type, mem_size, shared_att)
 
     self.encoder     = Encoder(vMFLunaBlock, num_blocks, hidden_dim, qkv_dim, mlp_dim, num_heads, internal_dropout_rate, affine, logging_frequency, shared_att, vmf_k, mem_size)
-    self.mem         = nn.Parameter(torch.empty(1, mem_size, hidden_dim), requires_grad=True)
-    nn.init.normal_(self.mem)
     
 class ConvLunaClassifier(LunaClassifier):
-  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000, mem_size=256, shared_att='full', kernel=(4, 1), stride=(1, 1), pool=False):
-    super(ConvLunaClassifier, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, use_cls, logging_frequency)
+  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000, norm_type='layernorm', mem_size=256, shared_att='full', kernel=(4, 1), stride=(1, 1), pool=False):
+    super(ConvLunaClassifier, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, use_cls, logging_frequency, norm_type, mem_size, shared_att)
 
     self.encoder     = Encoder(ConvLunaBlock, num_blocks, hidden_dim, qkv_dim, mlp_dim, num_heads, internal_dropout_rate, affine, logging_frequency, shared_att, kernel, stride, None, pool)
-    self.mem         = nn.Parameter(torch.empty(1, mem_size, hidden_dim), requires_grad=True)
-    nn.init.normal_(self.mem)
     
-class BLunaClassifier(ClassificationTransformer):
-  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000, mem_size=256, shared_att='full', weibull_k=10.0, gamma_beta=1e-4, prior_hidden_size=32, anneal_k=0.00015, anneal_b=6.25, eps=1e-5):
-    super(BLunaClassifier, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, use_cls, logging_frequency)
+class BLunaClassifier(LunaClassifier):
+  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000, norm_type='layernorm', mem_size=256, shared_att='full', weibull_k=10.0, gamma_beta=1e-4, prior_hidden_size=32, anneal_k=0.00015, anneal_b=6.25, eps=1e-5):
+    super(BLunaClassifier, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, use_cls, logging_frequency, norm_type, mem_size, shared_att)
 
     self.encoder     = Encoder(BLunaBlock, num_blocks, hidden_dim, qkv_dim, mlp_dim, num_heads, internal_dropout_rate, affine, logging_frequency, shared_att, weibull_k, gamma_beta, prior_hidden_size, anneal_k, anneal_b, eps)
-    self.mem         = nn.Parameter(torch.empty(1, mem_size, hidden_dim), requires_grad=True)
-    nn.init.normal_(self.mem)
-    
-  def forward(self, inputs, mask):
-    mem = self.mem
-    losses = []
-    artifacts = []
-    
-    x, mask= self.embed_layer(inputs, mask)
-    x, mem = self.encoder((x, mem), mask, losses, artifacts)
-    x      = self.classifier(x, mask)
-
-    return x, losses, artifacts
     
 class MatchingTransformer(ClassificationTransformer):
   def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000):
@@ -148,16 +131,6 @@ class LunaMatcher(LunaClassifier):
 
     return x, additional_losses, artifacts
     
-class PreLunaClassifier(LunaClassifier):
-  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000, mem_size=256, shared_att='full'):
-    super(PreLunaClassifier, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, use_cls, logging_frequency, mem_size, shared_att)
-    self.encoder     = Encoder(PreLunaBlock, num_blocks, hidden_dim, qkv_dim, mlp_dim, num_heads, internal_dropout_rate, affine, logging_frequency, shared_att)
-
-class PreLunaMatcher(LunaMatcher):
-    def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000, mem_size=256, shared_att='full'):
-        super(PreLunaMatcher, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, use_cls, logging_frequency, mem_size, shared_att)
-        self.encoder     = Encoder(PreLunaBlock, num_blocks, hidden_dim, qkv_dim, mlp_dim, num_heads, internal_dropout_rate, affine, logging_frequency, shared_att)
-     
 class LraLightningWrapper(pl.LightningModule):
     def __init__(self, model, reg_weight=1.0, betas=(0.9, 0.98), base_lr=0.05, wd=0.1, schedule=lambda x: 1.0, log_non_scalars=True, log_params=True, mask_inputs=False):
         super().__init__()

@@ -49,7 +49,6 @@ def get_setup(task):
 def get_model(args, encoder, setup, max_length):
     BASE_MODELS = { 'classification' : ClassificationTransformer, 'matching' : MatchingTransformer }
     LUNA_MODELS = { 'classification' : LunaClassifier,            'matching' : LunaMatcher }
-    PRELUNA_MODELS = { 'classification' : PreLunaClassifier,      'matching' : PreLunaMatcher }
     BLUNA_MODELS = { 'classification' : BLunaClassifier, }
     VMFLUNA_MODELS ={ 'classification' : vMFLunaClassifier, }
     CONVLUNA_MODELS = { 'classification' : ConvLunaClassifier, }
@@ -57,7 +56,6 @@ def get_model(args, encoder, setup, max_length):
     REGISTERED_MODELS = {
         'base' : BASE_MODELS,
         'luna' : LUNA_MODELS,
-        'preluna' : PRELUNA_MODELS,
         'bluna' : BLUNA_MODELS,
         'vmfluna' : VMFLUNA_MODELS,
         'convluna' : CONVLUNA_MODELS,
@@ -65,7 +63,6 @@ def get_model(args, encoder, setup, max_length):
     
     ADDITIONAL_MODEL_ARGS = {
         'luna'      : ['mem_size'],
-        'preluna'   : ['mem_size'],
         'bluna'     : ['mem_size', 'weibull_k', 'gamma_beta', 'prior_hidden_size', 'anneal_k', 'anneal_b', 'eps'],
         'vmfluna'   : ['mem_size', 'vmf_k', 'anneal_k', 'anneal_b', 'eps' ],
         'convluna'  : ['mem_size', 'kernel', 'stride', 'pool']
@@ -90,6 +87,7 @@ def get_model(args, encoder, setup, max_length):
             affine=args.biases,
             use_cls=args.use_cls,
             logging_frequency=args.logging_frequency,
+            norm_type=args.norm_type,
             ** additional_args
         ),
         reg_weight=1.0,
@@ -231,6 +229,7 @@ if __name__ == "__main__":
     parser.add_argument('--num_repeats', help='how many times to repeat the experiment', type=int, default=1)
     parser.add_argument('--beta_2', help='AdamW beta_2 parameter', type=float, default=0.999)
     parser.add_argument('--use_cls', help='Use CLS token to represent input or average pooling instead', type=bool_type, default=True)
+    parser.add_argument('--norm_type', help='Normalization layer type -- scalenorm, layernorm or (not implemented) batchnorm', type=str, default='layernorm')
     
     parser.add_argument('--weibull_k', help='Weibull dist K parameter', type=float, default=10.0)
     parser.add_argument('--gamma_beta', help='Gamma prior beta parameter', type=float, default=1e-4)
