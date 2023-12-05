@@ -51,12 +51,17 @@ class TEmbedding(nn.Module):
     
     #Uncomment if pos embeds are initialized with normal, but this tends to reduce the performance
     #nn.init.normal_(self.embedding.weight, std = 1 / math.sqrt(2))
+    #self.embedding.weight.data[padding_idx, :] = 0.0
     #nn.init.normal_(self.pos_embeds, std = 1 / math.sqrt(2)) #Since we use abs embeddings, we keep the output std = 1.0    
     
+    self.use_cls = use_cls
     self.cls = None
     if use_cls:
         self.cls = nn.Parameter(torch.zeros(1, 1, self.hidden_dim))
         nn.init.xavier_uniform_(self.cls)
+        
+  def extra_repr(self):
+    return 'hidden_dim={hidden_dim}, seq_length={seq_length}, use_cls={use_cls}'.format(**self.__dict__)
 
   def forward(self, input, mask=None):
     batch_size, seq_len = input.shape
@@ -134,7 +139,6 @@ class TAttention(nn.Module):
 
     return out, logits_raw
     
-
 def get_norm(norm_type, dim, dim_size, eps, affine):
     if norm_type == 'layernorm':
         return nn.LayerNorm(dim_size, eps=eps, elementwise_affine=affine)
@@ -389,12 +393,21 @@ class LunaBlock(TBlock):
     return q, m
 
 class ConvAttention(TAttention):
-  def __init__(self, hidden_dim, qkv_dim, num_heads, dropout_rate, affine=False, kernel=(4, 1), stride=(1, 1), padding='zeros', pool=False):
+  def __init__(self, hidden_dim, qkv_dim, num_heads, dropout_rate, affine=False, kernel=(4, 1), stride=(1, 1), padding='zeros', pool=False, temperature='unit'):
     super(ConvAttention, self).__init__(hidden_dim, qkv_dim, num_heads, dropout_rate, affine)
     if not pool:
         self.kernel = nn.Conv2d(num_heads, num_heads, kernel, stride, groups=num_heads, bias=False, padding=padding)
     else:
         self.kernel = nn.MaxPool2d(kernel, stride, padding=0)
+        
+    if temperature == 'unit':
+        self.log_temp = nn.Parameter(torch.zeros(1,), requires_grad=False)
+    elif temperature == 'sqrt':
+        self.log_temp = nn.Parameter(torch.ones(1,) * np.log(self.head_dim), requires_grad=False)
+    elif temperature == 'learn':
+        self.log_temp = nn.Parameter(torch.zeros(1,), requires_grad=True)
+    else:
+        raise ValueError('Temperature option {temperature} is not supported for unpack attention')
 
   def forward(self, q, k=None, v=None, q_mask=None, k_mask=None, losses=[]):
     if k is None:
@@ -407,7 +420,7 @@ class ConvAttention(TAttention):
 
     
     q, k, v = self.split_heads(q), self.split_heads(k), self.split_heads(v)
-    q = torch.mul(q, 1. / torch.sqrt(torch.tensor(self.head_dim)))
+    q = torch.mul(q, 1. / torch.exp(self.log_temp))
     
     o_k, o_v = k, v
     k, v = self.kernel(k), self.kernel(v)
@@ -441,13 +454,67 @@ class ConvAttention(TAttention):
 
     return out, logits_raw
     
+
+class UnpackAttention(TAttention):
+  def __init__(self, hidden_dim, qkv_dim, num_heads, dropout_rate, affine=False, temperature='unit'):
+    super(UnpackAttention, self).__init__()
+    if temperature == 'unit':
+        self.log_temp = nn.Parameter(torch.zeros(1,), requires_grad=False)
+    elif temperature == 'sqrt':
+        self.log_temp = nn.Parameter(torch.ones(1,) * np.log(self.head_dim), requires_grad=False)
+    elif temperature == 'learn':
+        self.log_temp = nn.Parameter(torch.zeros(1,), requires_grad=True)
+    else:
+        raise ValueError('Temperature option {temperature} is not supported for unpack attention')
+  
+  def forward(self, q, k=None, v=None, q_mask=None, k_mask=None, losses=[]):
+    if k is None:
+      k = v = q
+      k_mask = q_mask
+    
+    q = self.q(q)
+    k = self.k(k)
+    v = self.v(v)
+
+    
+    q, k, v = self.split_heads(q), self.split_heads(k), self.split_heads(v)
+    q = torch.mul(q, 1. / torch.exp(self.log_temp))
+    logits_raw = torch.einsum('bhqd,bhkd->bhqk', q, k)
+    logits = logits_raw
+    if q_mask is None and k_mask is None:
+        ...
+    else:
+        if q_mask is None:
+            mask = einops.rearrange(k_mask, 'b k -> b 1 1 k')
+        elif k_mask is None:
+            mask = einops.rearrange(q_mask, 'b q -> b 1 q 1')
+        else:
+            mask = torch.einsum('bq,bk->bqk', q_mask, k_mask).unsqueeze(-3)
+        logits = logits + -1e5 * (1 - mask)
+    
+    att = nn.Softmax(dim=-1)(logits)
+
+    att = self.dropout(att) #Like in TF implementation; could be done before Softmax by random -inf addition
+
+    out = torch.matmul(att, v)
+    out = out.permute(0, 2, 1, 3)
+
+    new_shape = out.shape[:-2] + (self.qkv_dim,)
+
+    out = out.reshape(* new_shape)
+
+    out = self.lin(out)
+
+    return out, logits_raw
+
+    
 class ConvLunaBlock(LunaBlock):
-  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, norm_type='layernorm', shared_att='full', kernel=4, stride=1, padding=None, pool=False):
+  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, norm_type='layernorm', shared_att='full', kernel=4, stride=1, padding=None, pool=False, temperature_pack='unit', temperature_unpack='unit'):
     super(ConvLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency, norm_type, shared_att)
     if padding is None:
         padding = 'same' if stride == 1 else 0
             
-    self.attention = ConvAttention(hidden_dim, qkv_dim, num_heads, dropout_rate, affine, (kernel, 1), (stride, 1), padding, pool)
+    self.attention = ConvAttention(hidden_dim, qkv_dim, num_heads, dropout_rate, affine, (kernel, 1), (stride, 1), padding, pool, temperature_pack)
       
     if shared_att == 'full':
       shared_att == 'qkvo'
@@ -506,9 +573,9 @@ class BLunaBlock(TBlock):
 
     return q, m
     
-class vMFLunaBlock(LunaBlock):
-  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, norm_type='layernorm', shared_att='full', vmf_k=10.0, mem_size=256, anneal_k=0.00015, anneal_b=6.25, eps=1e-5):
-    super(vMFLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency, norm_type, shared_att)
+class vMFLunaBlock(ConvLunaBlock):
+  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, norm_type='layernorm', shared_att='full', kernel=4, stride=1, padding=None, pool=False, vmf_k=10.0, mem_size=256, anneal_k=0.00015, anneal_b=6.25, eps=1e-5):
+    super(vMFLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency, norm_type, shared_att, kernel, stride, padding, pool)
     
     self.rec_network = nn.Sequential(
         nn.Linear(hidden_dim, hidden_dim),

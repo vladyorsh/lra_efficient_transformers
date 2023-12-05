@@ -64,8 +64,9 @@ def get_model(args, encoder, setup, max_length):
     ADDITIONAL_MODEL_ARGS = {
         'luna'      : ['mem_size'],
         'bluna'     : ['mem_size', 'weibull_k', 'gamma_beta', 'prior_hidden_size', 'anneal_k', 'anneal_b', 'eps'],
-        'vmfluna'   : ['mem_size', 'vmf_k', 'anneal_k', 'anneal_b', 'eps' ],
-        'convluna'  : ['mem_size', 'kernel', 'stride', 'pool']
+        'convluna'  : ['mem_size', 'kernel', 'stride', 'pool', 'temperature_pack', 'temperature_unpack'],
+        'vmfluna'   : ['mem_size', 'kernel', 'stride', 'pool', 'vmf_k', 'anneal_k', 'anneal_b', 'eps' ],
+        
     }
     
     task = 'classification' if args.task in { 'classification', 'listops' } else 'matching'
@@ -244,6 +245,8 @@ if __name__ == "__main__":
     parser.add_argument('--kernel', help='Kernel size', type=int, default=4)
     parser.add_argument('--stride', help='Kernel stride', type=int, default=1)
     parser.add_argument('--pool', help='Apply pooling instead of convolution', type=bool_type, default=False)
+    parser.add_argument('--temperature_pack', help='Use sqrt normalization, no normalization or learnable temperature in pack attention (sqrt|unit|learn)', type=str, default='learn')
+    parser.add_argument('--temperature_unpack', help='Use sqrt normalization, no normalization or learnable temperature in pack attention (sqrt|unit|learn)', type=str, default='learn')
     
         
     args = parser.parse_args()
