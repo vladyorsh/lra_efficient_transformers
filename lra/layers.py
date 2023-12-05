@@ -407,7 +407,7 @@ class ConvAttention(TAttention):
     elif temperature == 'learn':
         self.log_temp = nn.Parameter(torch.zeros(1,), requires_grad=True)
     else:
-        raise ValueError('Temperature option {temperature} is not supported for unpack attention')
+        raise ValueError(f'Temperature option {temperature} is not supported for unpack attention')
 
   def forward(self, q, k=None, v=None, q_mask=None, k_mask=None, losses=[]):
     if k is None:
@@ -465,7 +465,7 @@ class UnpackAttention(TAttention):
     elif temperature == 'learn':
         self.log_temp = nn.Parameter(torch.zeros(1,), requires_grad=True)
     else:
-        raise ValueError('Temperature option {temperature} is not supported for unpack attention')
+        raise ValueError(f'Temperature option {temperature} is not supported for unpack attention')
   
   def forward(self, q, k=None, v=None, q_mask=None, k_mask=None, losses=[]):
     if k is None:
@@ -529,6 +529,29 @@ class ConvLunaBlock(LunaBlock):
             self.attention_unpack.v = self.attention.v
         if 'o' in shared_att:
             self.attention_unpack.lin = self.attention.lin
+            
+  def forward(self, input, memory, mask=None, losses=[], artifacts=[]):    
+    packed, packed_att = self.attention(memory, input, input, k_mask=mask)
+    unpacked, unpacked_att = self.attention_unpack(input, packed, packed, q_mask=mask)
+    if mask is not None:
+        unpacked = unpacked * mask.unsqueeze(-1)
+    q = self.norm_input(input + unpacked)
+    m = self.norm_mem(memory + packed)
+
+    y = self.ffn(q)
+    if mask is not None:
+        y = y * mask.unsqueeze(-1)
+    q = self.norm_inter(q + y)
+    
+    artifacts.append( (
+    Artifact(packed[0], 'packed', ('tensor_slice', 'hist'), self.logging_frequency),
+    Artifact(unpacked[0], 'unpacked', ('tensor_slice', 'hist'), self.logging_frequency),
+    Artifact(packed_att[0], 'packed_att_logits', 'tensor_stack', self.logging_frequency),
+    Artifact(unpacked_att[0], 'unpacked_att_logits', 'tensor_stack', self.logging_frequency),
+    Artifact(memory[0], 'input_memory', ('tensor_slice', 'hist'), self.logging_frequency),
+    ) )
+
+    return q, m
               
 class BLunaBlock(TBlock):
   def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, norm_type='layernorm', shared_att='full', weibull_k=10.0, gamma_beta=1e-4, prior_hidden_size=32, anneal_k=0.00015, anneal_b=6.25, eps=1e-5):
