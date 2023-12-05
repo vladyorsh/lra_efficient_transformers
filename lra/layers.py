@@ -457,7 +457,7 @@ class ConvAttention(TAttention):
 
 class UnpackAttention(TAttention):
   def __init__(self, hidden_dim, qkv_dim, num_heads, dropout_rate, affine=False, temperature='unit'):
-    super(UnpackAttention, self).__init__()
+    super(UnpackAttention, self).__init__(hidden_dim, qkv_dim, num_heads, dropout_rate, affine)
     if temperature == 'unit':
         self.log_temp = nn.Parameter(torch.zeros(1,), requires_grad=False)
     elif temperature == 'sqrt':
