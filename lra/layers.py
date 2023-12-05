@@ -519,7 +519,7 @@ class ConvLunaBlock(LunaBlock):
     if shared_att == 'full':
       shared_att == 'qkvo'
         
-    self.attention_unpack = TAttention(hidden_dim, qkv_dim, num_heads, dropout_rate)
+    self.attention_unpack = UnpackAttention(hidden_dim, qkv_dim, num_heads, dropout_rate, temperature_unpack)
     if shared_att is not None:
         if 'q' in shared_att:
             self.attention_unpack.q = self.attention.q
