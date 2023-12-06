@@ -458,7 +458,6 @@ class SimplifiedConvAttention(ConvAttention):
   def __init__(self, hidden_dim, qkv_dim, num_heads, dropout_rate, affine=False, kernel=(4, 1), stride=(1, 1), padding='zeros', pool=False, temperature='unit'):
     super(SimplifiedConvAttention, self).__init__(hidden_dim, qkv_dim, num_heads, dropout_rate, affine, kernel, stride, padding, pool, temperature)
     del self.v
-    del self.lin
         
   def forward(self, q, k=None, v=None, q_mask=None, k_mask=None, losses=[]):
     if k is None:
@@ -499,6 +498,7 @@ class SimplifiedConvAttention(ConvAttention):
     new_shape = out.shape[:-2] + (self.qkv_dim,)
 
     out = out.reshape(* new_shape)
+    out = self.lin(out)
 
     return out, logits_raw
     
@@ -558,7 +558,6 @@ class SimplifiedUnpackAttention(UnpackAttention):
   def __init__(self, hidden_dim, qkv_dim, num_heads, dropout_rate, affine=False, temperature='unit'):
     super(SimplifiedUnpackAttention, self).__init__(hidden_dim, qkv_dim, num_heads, dropout_rate, affine, temperature)
     del self.v
-    del self.lin
   
   def forward(self, q, k=None, v=None, q_mask=None, k_mask=None, losses=[]):
     if k is None:
@@ -594,6 +593,7 @@ class SimplifiedUnpackAttention(UnpackAttention):
     new_shape = out.shape[:-2] + (self.qkv_dim,)
 
     out = out.reshape(* new_shape)
+    out = self.lin(out)
 
     return out, logits_raw
     
@@ -653,6 +653,7 @@ class SimplifiedConvLunaBlock(ConvLunaBlock):
     
     self.attention_unpack.q = self.attention.q
     self.attention_unpack.k = self.attention.k
+    self.attention_unpack.lin = self.attention.lin
     
 class BLunaBlock(TBlock):
   def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, norm_type='layernorm', shared_att='full', weibull_k=10.0, gamma_beta=1e-4, prior_hidden_size=32, anneal_k=0.00015, anneal_b=6.25, eps=1e-5):
