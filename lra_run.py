@@ -64,7 +64,7 @@ def get_model(args, encoder, setup, max_length):
     ADDITIONAL_MODEL_ARGS = {
         'luna'      : ['mem_size'],
         'bluna'     : ['mem_size', 'weibull_k', 'gamma_beta', 'prior_hidden_size', 'anneal_k', 'anneal_b', 'eps'],
-        'convluna'  : ['mem_size', 'kernel', 'stride', 'pool', 'temperature_pack', 'temperature_unpack'],
+        'convluna'  : ['mem_size', 'kernel', 'stride', 'pool', 'temperature_pack', 'temperature_unpack', 'use_mem_repr'],
         'vmfluna'   : ['mem_size', 'kernel', 'stride', 'pool', 'vmf_k', 'anneal_k', 'anneal_b', 'eps' ],
         
     }
@@ -247,6 +247,7 @@ if __name__ == "__main__":
     parser.add_argument('--pool', help='Apply pooling instead of convolution', type=bool_type, default=False)
     parser.add_argument('--temperature_pack', help='Use sqrt normalization, no normalization or learnable temperature in pack attention (sqrt|unit|learn)', type=str, default='learn')
     parser.add_argument('--temperature_unpack', help='Use sqrt normalization, no normalization or learnable temperature in pack attention (sqrt|unit|learn)', type=str, default='learn')
+    parser.add_argument('--use_mem_repr', help='Use memory as a final representation', type=bool_type, default=False)
     
         
     args = parser.parse_args()

@@ -59,10 +59,26 @@ class LunaClassifier(ClassificationTransformer):
     return x, losses, artifacts
     
 class ConvLunaClassifier(LunaClassifier):
-  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000, norm_type='layernorm', mem_size=256, shared_att='full', kernel=(4, 1), stride=(1, 1), pool=False, temperature_pack='unit', temperature_unpack='unit'):
+  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000, norm_type='layernorm', mem_size=256, shared_att='full', kernel=(4, 1), stride=(1, 1), pool=False, temperature_pack='unit', temperature_unpack='unit', use_mem_repr=False):
+    if use_cls and use_mem_repr:
+        use_cls = False
     super(ConvLunaClassifier, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, use_cls, logging_frequency, norm_type, mem_size, shared_att)
 
     self.encoder     = Encoder(ConvLunaBlock, num_blocks, hidden_dim, qkv_dim, mlp_dim, num_heads, internal_dropout_rate, affine, logging_frequency, norm_type, shared_att, kernel, stride, None, pool, temperature_pack, temperature_unpack)
+    self.use_mem_repr = use_mem_repr
+    
+  def forward(self, inputs, mask):
+    mem = self.mem
+    losses = []
+    artifacts = []
+    
+    x, mask= self.embed_layer(inputs, mask)
+    x, mem = self.encoder((x, mem), mask, losses, artifacts)
+    
+    cls = (x, mask) if not self.use_mem_repr else (mem, None)
+    x      = self.classifier(* cls)
+
+    return x, losses, artifacts
     
 class vMFLunaClassifier(ConvLunaClassifier):
   def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000, norm_type='layernorm', mem_size=256, shared_att='full', kernel=(4, 1), stride=(1, 1), pool=False, vmf_k=10.0, anneal_k=0.00015, anneal_b=6.25, eps=1e-5):
