@@ -52,7 +52,7 @@ MATCHING_SETUP = {
     'full_batch_size' : 64, #Original 32
     'max_length' : 4000,
     
-    'lr' : 0.05,
+    'lr' : 0.005, #Original 0.05
     'weight_decay' : 0.04, #Original 0.01
     'schedule' : lambda: get_sqrt_schedule(warmup_steps=8000),
     'steps' : 30000,
