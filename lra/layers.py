@@ -454,7 +454,54 @@ class ConvAttention(TAttention):
 
     return out, logits_raw
     
+class SimplifiedConvAttention(ConvAttention):
+  def __init__(self, hidden_dim, qkv_dim, num_heads, dropout_rate, affine=False, kernel=(4, 1), stride=(1, 1), padding='zeros', pool=False, temperature='unit'):
+    super(SimplifiedConvAttention, self).__init__(hidden_dim, qkv_dim, num_heads, dropout_rate, affine, kernel, stride, padding, pool, temperature)
+    del self.v
+    del self.lin
+        
+  def forward(self, q, k=None, v=None, q_mask=None, k_mask=None, losses=[]):
+    if k is None:
+      k = v = q
+      k_mask = q_mask
+    
+    q = self.q(q)
+    k = self.k(k)
+    v = v
 
+    q, k, v = self.split_heads(q), self.split_heads(k), self.split_heads(v)
+    q = torch.mul(q, 1. / torch.exp(self.log_temp))
+    
+    o_k, o_v = k, v
+    k, v = self.kernel(k), self.kernel(v)
+    shape_change = (o_k.shape != k.shape) or (o_v.shape != v.shape)
+    
+    logits_raw = torch.einsum('bhqd,bhkd->bhqk', q, k)
+    logits = logits_raw
+    if (q_mask is None and k_mask is None) or shape_change:
+        ...
+    else:
+        if q_mask is None:
+            mask = einops.rearrange(k_mask, 'b k -> b 1 1 k')
+        elif k_mask is None:
+            mask = einops.rearrange(q_mask, 'b q -> b 1 q 1')
+        else:
+            mask = torch.einsum('bq,bk->bqk', q_mask, k_mask).unsqueeze(-3)
+        logits = logits + -1e5 * (1 - mask)
+    
+    att = nn.Softmax(dim=-1)(logits)
+
+    att = self.dropout(att) #Like in TF implementation; could be done before Softmax by random -inf addition
+
+    out = torch.matmul(att, v)
+    out = out.permute(0, 2, 1, 3)
+
+    new_shape = out.shape[:-2] + (self.qkv_dim,)
+
+    out = out.reshape(* new_shape)
+
+    return out, logits_raw
+    
 class UnpackAttention(TAttention):
   def __init__(self, hidden_dim, qkv_dim, num_heads, dropout_rate, affine=False, temperature='unit'):
     super(UnpackAttention, self).__init__(hidden_dim, qkv_dim, num_heads, dropout_rate, affine)
@@ -507,6 +554,48 @@ class UnpackAttention(TAttention):
 
     return out, logits_raw
 
+class SimplifiedUnpackAttention(UnpackAttention):
+  def __init__(self, hidden_dim, qkv_dim, num_heads, dropout_rate, affine=False, temperature='unit'):
+    super(SimplifiedUnpackAttention, self).__init__(hidden_dim, qkv_dim, num_heads, dropout_rate, affine, temperature)
+    del self.v
+    del self.lin
+  
+  def forward(self, q, k=None, v=None, q_mask=None, k_mask=None, losses=[]):
+    if k is None:
+      k = v = q
+      k_mask = q_mask
+    
+    q = self.q(q)
+    k = self.k(k)
+    v = v
+    
+    q, k, v = self.split_heads(q), self.split_heads(k), self.split_heads(v)
+    q = torch.mul(q, 1. / torch.exp(self.log_temp))
+    logits_raw = torch.einsum('bhqd,bhkd->bhqk', q, k)
+    logits = logits_raw
+    if q_mask is None and k_mask is None:
+        ...
+    else:
+        if q_mask is None:
+            mask = einops.rearrange(k_mask, 'b k -> b 1 1 k')
+        elif k_mask is None:
+            mask = einops.rearrange(q_mask, 'b q -> b 1 q 1')
+        else:
+            mask = torch.einsum('bq,bk->bqk', q_mask, k_mask).unsqueeze(-3)
+        logits = logits + -1e5 * (1 - mask)
+    
+    att = nn.Softmax(dim=-1)(logits)
+
+    att = self.dropout(att) #Like in TF implementation; could be done before Softmax by random -inf addition
+
+    out = torch.matmul(att, v)
+    out = out.permute(0, 2, 1, 3)
+
+    new_shape = out.shape[:-2] + (self.qkv_dim,)
+
+    out = out.reshape(* new_shape)
+
+    return out, logits_raw
     
 class ConvLunaBlock(LunaBlock):
   def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, norm_type='layernorm', shared_att='full', kernel=4, stride=1, padding=None, pool=False, temperature_pack='unit', temperature_unpack='unit'):
@@ -552,7 +641,19 @@ class ConvLunaBlock(LunaBlock):
     ) )
 
     return q, m
-              
+    
+class SimplifiedConvLunaBlock(ConvLunaBlock):
+  def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, norm_type='layernorm', kernel=4, stride=1, padding=None, pool=False, temperature_pack='unit', temperature_unpack='unit'):
+    super(SimplifiedConvLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency, norm_type, 'qk', kernel, stride, padding, pool, temperature_pack, temperature_unpack)
+    if padding is None:
+        padding = 'same' if stride == 1 else 0
+            
+    self.attention = SimplifiedConvAttention(hidden_dim, qkv_dim, num_heads, dropout_rate, affine, (kernel, 1), (stride, 1), padding, pool, temperature_pack)
+    self.attention_unpack = SimplifiedUnpackAttention(hidden_dim, qkv_dim, num_heads, dropout_rate, temperature_unpack)
+    
+    self.attention_unpack.q = self.attention.q
+    self.attention_unpack.k = self.attention.k
+    
 class BLunaBlock(TBlock):
   def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, norm_type='layernorm', shared_att='full', weibull_k=10.0, gamma_beta=1e-4, prior_hidden_size=32, anneal_k=0.00015, anneal_b=6.25, eps=1e-5):
     super(BLunaBlock, self).__init__(hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency, norm_type, shared_att)
