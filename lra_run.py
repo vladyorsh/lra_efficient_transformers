@@ -189,7 +189,7 @@ def main(args):
         inference_mode='ddp' not in args.strategy,
         max_steps=setup['steps'],
         check_val_every_n_epoch=None,
-        val_check_interval=setup['eval_period'],
+        val_check_interval=setup['eval_period'] * accumulation_steps,
         accumulate_grad_batches=accumulation_steps,
         #!!!!!!!!
         fast_dev_run=args.fast,
