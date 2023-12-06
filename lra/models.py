@@ -159,6 +159,7 @@ class SimplifiedConvLunaMatcher(SimplifiedConvLunaClassifier):
     self.classifier  = DualClassifier(classes, hidden_dim, mlp_dim, affine, use_cls)
 
   def forward(self, inputs, masks):
+    mem_1, mem_2 = self.mem, self.mem
     additional_losses = []
     artifacts_1 = []
     artifacts_2 = []
