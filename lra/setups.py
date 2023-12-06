@@ -11,12 +11,12 @@ CLS_SETUP = {
     'eval_period' : 500, #Original LRA vaue 200
     
     'classes' : 2,
-    'hidden_dim' : 256,
-    'qkv_dim' : 256,
-    'mlp_dim': 1024,
+    'hidden_dim' : 128,
+    'qkv_dim' : 128,
+    'mlp_dim': 512,
     'num_heads' : 4,
     'num_blocks' : 4,
-    'output_units' : 1024,
+    'output_units' : 512,
     'internal_dropout_rate' : 0.1,
     'output_dropout_rate' : 0.0,
     
