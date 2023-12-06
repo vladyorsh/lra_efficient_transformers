@@ -81,7 +81,7 @@ class ConvLunaClassifier(LunaClassifier):
     return x, losses, artifacts
     
 class SimplifiedConvLunaClassifier(ConvLunaClassifier):
-    def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000, norm_type='layernorm', mem_size=256, kernel=(4, 1), stride=(1, 1), pool=False, temperature_pack='unit', temperature_unpack='unit', use_mem_repr=False):
+  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000, norm_type='layernorm', mem_size=256, kernel=(4, 1), stride=(1, 1), pool=False, temperature_pack='unit', temperature_unpack='unit', use_mem_repr=False):
     super(ConvLunaClassifier, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, use_cls, logging_frequency, norm_type, mem_size, 'full', kernel, stride, pool, temperature_pack, temperature_unpack, use_mem_repr)
 
     self.encoder     = Encoder(SimplifiedConvLunaBlock, num_blocks, hidden_dim, qkv_dim, mlp_dim, num_heads, internal_dropout_rate, affine, logging_frequency, norm_type, kernel, stride, None, pool, temperature_pack, temperature_unpack)
