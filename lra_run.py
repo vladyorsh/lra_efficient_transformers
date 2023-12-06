@@ -51,7 +51,7 @@ def get_model(args, encoder, setup, max_length):
     LUNA_MODELS = { 'classification' : LunaClassifier,            'matching' : LunaMatcher }
     BLUNA_MODELS = { 'classification' : BLunaClassifier, }
     VMFLUNA_MODELS ={ 'classification' : vMFLunaClassifier, }
-    CONVLUNA_MODELS = { 'classification' : SimplifiedConvLunaClassifier, }
+    CONVLUNA_MODELS = { 'classification' : SimplifiedConvLunaClassifier, 'matching' : SimplifiedConvLunaMatcher }
     
     REGISTERED_MODELS = {
         'base' : BASE_MODELS,

@@ -153,6 +153,34 @@ class LunaMatcher(LunaClassifier):
 
     return x, additional_losses, artifacts
     
+class SimplifiedConvLunaMatcher(SimplifiedConvLunaClassifier):
+  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000, norm_type='layernorm', mem_size=256, kernel=(4, 1), stride=(1, 1), pool=False, temperature_pack='unit', temperature_unpack='unit', use_mem_repr=False):
+    super(SimplifiedConvLunaClassifier, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, use_cls, logging_frequency, norm_type, mem_size, kernel, stride, pool, temperature_pack, temperature_unpack, use_mem_repr)
+     self.classifier  = DualClassifier(classes, hidden_dim, mlp_dim, affine, use_cls)
+
+  def forward(self, inputs, masks):
+    additional_losses = []
+    artifacts_1 = []
+    artifacts_2 = []
+    
+    if masks is not None:
+        mask_1, mask_2 = masks
+    else:
+        mask_1, mask_2 = None, None
+
+    emb_1, mask_1 = self.embed_layer(inputs[0], mask_1)
+    emb_2, mask_2 = self.embed_layer(inputs[1], mask_2)
+    
+    emb_1, mem_1 = self.encoder((emb_1, mem_1), mask_1, losses=additional_losses, artifacts=artifacts_1)
+    emb_2, mem_2 = self.encoder((emb_2, mem_2), mask_2, losses=additional_losses, artifacts=artifacts_2)
+    
+    cls = (emb_1, emb_2) if not self.use_mem_repr else (mem_1, mem_2)
+    x = self.classifier(cls)
+    
+    artifacts = list(zip(artifacts_1, artifacts_2))
+
+    return x, additional_losses, artifacts
+    
 class LraLightningWrapper(pl.LightningModule):
     def __init__(self, model, reg_weight=1.0, betas=(0.9, 0.98), base_lr=0.05, wd=0.1, schedule=lambda x: 1.0, log_non_scalars=True, log_params=True, mask_inputs=False):
         super().__init__()
