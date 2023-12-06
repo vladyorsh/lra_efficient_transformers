@@ -25,7 +25,7 @@ def get_lra_data(lib_path, data_path, task, batch_size, max_length):
     from lra_benchmarks.listops.input_pipeline import get_datasets as get_listops_datasets
     from lra_benchmarks.text_classification.input_pipeline import get_tc_datasets
     
-    MATCHING_DATADIR = os.path.join(os.path.realpath(data_path), 'lra_release/tsv_data')
+    MATCHING_DATADIR = os.path.join(os.path.realpath(data_path), 'tsv_data/')
     LISTOPS_DATADIR  = os.path.join(os.path.realpath(data_path), 'listops-1000/')
     
     DATASETS_BY_TASK = {
