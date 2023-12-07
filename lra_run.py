@@ -206,6 +206,10 @@ if __name__ == "__main__":
             return False
         raise ValueError(f'Cannot parse {x} as bool!')
         
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    for gpu in gpus:
+        tf.config.experimental.set_memory_growth(gpu, True)
+        
     parser = argparse.ArgumentParser(description='Run LRA tasks with chosen models.')
     parser.add_argument('--task', help='LRA task to be run on')
     parser.add_argument('--max_length', type=int, help='max input length', default=-1)
