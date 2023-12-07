@@ -25,7 +25,7 @@ CLS_SETUP = {
 }
 
 LISTOPS_SETUP = {
-    'full_batch_size' : 64, #Original 32
+    'full_batch_size' : 32, #Original 32
     'max_length' : 2000,
     
     'lr' : 0.005, #Original 0.005
@@ -49,7 +49,7 @@ LISTOPS_SETUP = {
 }
 
 MATCHING_SETUP = {
-    'full_batch_size' : 64, #Original 32
+    'full_batch_size' : 32, #Original 32, try 64?
     'max_length' : 4000,
     
     'lr' : 0.005, #Original 0.05
@@ -64,7 +64,7 @@ MATCHING_SETUP = {
     'qkv_dim' : 128,
     'mlp_dim' : 512,
     'num_heads' : 4,
-    'num_blocks' : 6, #Original 4
+    'num_blocks' : 3, #Original 4, try 6?
     'output_units' : 512,
     'internal_dropout_rate' : 0.1,
     'output_dropout_rate' : 0.0,
