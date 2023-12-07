@@ -128,6 +128,7 @@ class MatchingTransformer(ClassificationTransformer):
 class LunaMatcher(LunaClassifier):
   def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000, mem_size=256, shared_att='full'):
     super(LunaMatcher, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, use_cls, logging_frequency, mem_size, shared_att)
+    
     self.classifier  = DualClassifier(classes, hidden_dim, mlp_dim, affine, use_cls)
     
   def forward(self, inputs, masks):
@@ -155,6 +156,8 @@ class LunaMatcher(LunaClassifier):
     
 class SimplifiedConvLunaMatcher(SimplifiedConvLunaClassifier):
   def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000, norm_type='layernorm', mem_size=256, kernel=(4, 1), stride=(1, 1), pool=False, temperature_pack='unit', temperature_unpack='unit', use_mem_repr=False):
+    if use_cls and use_mem_repr:
+        use_cls = False
     super(SimplifiedConvLunaMatcher, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, use_cls, logging_frequency, norm_type, mem_size, kernel, stride, pool, temperature_pack, temperature_unpack, use_mem_repr)
     self.classifier  = DualClassifier(classes, hidden_dim, mlp_dim, affine, use_cls)
 

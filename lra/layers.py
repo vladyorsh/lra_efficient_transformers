@@ -331,8 +331,8 @@ class DualClassifier(nn.Module):
     self.use_cls   = use_cls
 
     self.ffn       = nn.Sequential(
-        nn.Linear(hidden_dim * 2, inter_dim, bias=affine), nn.ReLU(),
-        nn.Linear(inter_dim, inter_dim // 2, bias=affine), nn.ReLU(),
+        nn.Linear(hidden_dim * 2, inter_dim, bias=affine), nn.GELU(),
+        nn.Linear(inter_dim, inter_dim // 2, bias=affine), nn.GELU(),
     )
     self.output    = nn.Linear(inter_dim // 2, classes, bias=affine)
 
