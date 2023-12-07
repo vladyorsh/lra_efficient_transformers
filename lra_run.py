@@ -24,6 +24,7 @@ def get_lra_data(lib_path, data_path, task, batch_size, max_length):
     from lra_benchmarks.matching.input_pipeline import get_matching_datasets
     from lra_benchmarks.listops.input_pipeline import get_datasets as get_listops_datasets
     from lra_benchmarks.text_classification.input_pipeline import get_tc_datasets
+    from lra_benchmarks.image.input_pipeline import get_cifar10_datasets, get_pathfinder_base_datasets
     
     MATCHING_DATADIR = os.path.join(os.path.realpath(data_path), 'tsv_data/')
     LISTOPS_DATADIR  = os.path.join(os.path.realpath(data_path), 'listops-1000/')
@@ -32,6 +33,7 @@ def get_lra_data(lib_path, data_path, task, batch_size, max_length):
         'classification' : lambda batch_size, max_length: get_tc_datasets(1, 'imdb_reviews', batch_size=batch_size, max_length=max_length),
         'matching'       : lambda batch_size, max_length: get_matching_datasets(1, None, tokenizer='char', data_dir=MATCHING_DATADIR, batch_size=batch_size, max_length=max_length),
         'listops'        : lambda batch_size, max_length: get_listops_datasets(1, 'basic', data_dir=LISTOPS_DATADIR, batch_size=batch_size, max_length=max_length),
+        'cifar'          : lambda batch_size, max_length: get_cifar10_datasets(1, batch_size)
     }
     
     return DATASETS_BY_TASK[task.lower()](batch_size, max_length)
@@ -166,7 +168,7 @@ def main(args):
         devices=args.devices,
         num_nodes=1,
         precision=args.precision,
-        logger=pl.loggers.TensorBoardLogger('logs', name=args.exp_name), #pl.loggers.CSVLogger("logs", name=args.exp_name),
+        logger=pl.loggers.TensorBoardLogger(args.logdir, name=args.exp_name), #pl.loggers.CSVLogger("logs", name=args.exp_name),
         callbacks=[
             #Monitoring
             pl.callbacks.LearningRateMonitor(logging_interval='step'),
@@ -233,6 +235,7 @@ if __name__ == "__main__":
     parser.add_argument('--mem_size', help='memory-augmented models memory size', type=int, default=256)
     parser.add_argument('--num_repeats', help='how many times to repeat the experiment', type=int, default=1)
     parser.add_argument('--beta_2', help='AdamW beta_2 parameter', type=float, default=0.999)
+    parser.add_argument('--logdir', help='where to log', type=str, default='logs')
     
     parser.add_argument('--use_cls', help='Use CLS token to represent input or average pooling instead', type=bool_type, default=True)
     parser.add_argument('--norm_type', help='Normalization layer type -- scalenorm, layernorm or (not implemented) batchnorm', type=str, default='layernorm')
