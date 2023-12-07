@@ -472,6 +472,9 @@ class SimplifiedConvAttention(ConvAttention):
     q = torch.mul(q, 1. / torch.exp(self.log_temp))
     
     o_k, o_v = k, v
+    if k_mask is not None:
+        mask = einops.rearrange(k_mask, 'b k -> b 1 k 1')
+        k, v = k * mask, v * mask
     k, v = self.kernel(k), self.kernel(v)
     shape_change = (o_k.shape != k.shape) or (o_v.shape != v.shape)
     
