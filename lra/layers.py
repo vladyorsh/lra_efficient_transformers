@@ -55,7 +55,7 @@ class IEmbedding(nn.Module):
   def reset_parameters(self):
     nn.init.normal_(self.weight, mean=0.0, std=1.0)
     nn.init.normal_(self.bias, mean=0.0, std=0.1)
-    if self.use_cls is not None:
+    if self.cls is not None:
         nn.init.normal_(self.cls, mean=0.0, std=1.0)
 
   def forward(self, x, mask):
