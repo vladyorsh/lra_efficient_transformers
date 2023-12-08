@@ -278,21 +278,19 @@ class TBlock(nn.Module):
   def forward(self, input, mask, losses=[], artifacts=[]):
     if mask is not None:
         x = x * mask.unsqueeze(-1)
-    x = self.norm_input(input)
+    x = self.layernorm_input(input)
     x, att = self.attention(x, q_mask=mask, losses=losses)
     
     artifacts.append(
         Artifact(att[0], 'att_logits', 'tensor_stack', self.logging_frequency),
     )
-
     x = input + x
     
     if mask is not None:
         x = x * mask.unsqueeze(-1)
-    y = self.norm_inter(x)
+    y = self.layernorm_inter(x)
     
     x = self.ffn(y) + x
-
     return x
 
 class TClassifier(nn.Module):
@@ -335,6 +333,9 @@ class DualClassifier(nn.Module):
         nn.Linear(inter_dim, inter_dim // 2, bias=affine), nn.GELU(),
     )
     self.output    = nn.Linear(inter_dim // 2, classes, bias=affine)
+    
+  def extra_repr(self) -> str:
+    return 'use_cls={use_cls}'.format(**self.__dict__)
 
   def forward(self, x):
     emb_1, emb_2 = x

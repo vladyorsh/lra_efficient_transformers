@@ -33,7 +33,7 @@ def get_lra_data(lib_path, data_path, task, batch_size, max_length):
         'classification' : lambda batch_size, max_length: get_tc_datasets(1, 'imdb_reviews', batch_size=batch_size, max_length=max_length),
         'matching'       : lambda batch_size, max_length: get_matching_datasets(1, None, tokenizer='char', data_dir=MATCHING_DATADIR, batch_size=batch_size, max_length=max_length),
         'listops'        : lambda batch_size, max_length: get_listops_datasets(1, 'basic', data_dir=LISTOPS_DATADIR, batch_size=batch_size, max_length=max_length),
-        'cifar'          : lambda batch_size, max_length: get_cifar10_datasets(1, batch_size)
+        'cifar'          : lambda batch_size, max_length: get_cifar10_datasets(1, batch_size, True)
     }
     
     return DATASETS_BY_TASK[task.lower()](batch_size, max_length)
@@ -246,7 +246,6 @@ if __name__ == "__main__":
     parser.add_argument('--anneal_k', help='KLD annealing scaling parameter', type=float, default=0.0015)
     parser.add_argument('--anneal_b', help='KLD annealing shift parameter', type=float, default=6.25)
     parser.add_argument('--eps', help='fudge', type=float, default=1e-5)
-    
     parser.add_argument('--vmf_k', help='vMF kappa parameter', type=float, default=10.0)
     
     parser.add_argument('--kernel', help='Kernel size', type=int, default=4)
