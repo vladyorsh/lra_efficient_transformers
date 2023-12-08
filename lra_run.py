@@ -156,7 +156,7 @@ def main(args):
     print(f'Sampling {sampled_batch_size} samples according to the strategy, and applying {accumulation_steps} grad accumulation steps.')
     
     train_dataset, valid_dataset, test_dataset, encoder = get_lra_data(args.lib_path, args.data_path, args.task, args.batch_size, max_length)
-    if args.task not in { 'classification', 'listops' }:
+    if args.task not in { 'cifar', 'pathfinder' }:
         train_dataset, valid_dataset, test_dataset = wrap_lra_tf_dataset(train_dataset, num_workers=args.data_workers), wrap_lra_tf_dataset(valid_dataset, num_workers=args.data_workers), wrap_lra_tf_dataset(test_dataset, num_workers=args.data_workers)
     
     torch.set_float32_matmul_precision(args.matmul_precision)
