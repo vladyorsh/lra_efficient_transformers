@@ -380,7 +380,7 @@ class DualClassifier(nn.Module):
 
     return logits
     
-class ImageClassifier(TClassifier):
+class IClassifier(TClassifier):
     def __init__(self, classes, hidden_dim, inter_dim, affine, use_cls):
         super(ImageClassifier, self).__init__(classes, hidden_dim, inter_dim, affine, use_cls)
         self.ffn = nn.Sequential(
