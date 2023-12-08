@@ -42,8 +42,8 @@ class IEmbedding(nn.Module):
     self.hidden_dim = hidden_dim
     self.seq_length = seq_length
     
-    self.weight = Parameter(torch.Tensor(hidden_dim), requires_grad=True)
-    self.bias   = Parameter(torch.Tensor(hidden_dim), requires_grad=True)
+    self.weight = nn.Parameter(torch.Tensor(hidden_dim), requires_grad=True)
+    self.bias   = nn.Parameter(torch.Tensor(hidden_dim), requires_grad=True)
     self.pos_embeds  = nn.Parameter(torch.zeros(1, self.seq_length, self.hidden_dim))
     self.cls    = None
     if use_cls:
