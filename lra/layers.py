@@ -35,6 +35,36 @@ class ScaleNorm(nn.Module):
 
     def extra_repr(self) -> str:
         return 'dim={dim}, eps={eps}, affine={affine}'.format(**self.__dict__)
+        
+class IEmbedding(nn.Module):
+  def __init__(self, hidden_dim, seq_length, use_cls):
+    super(IEmbedding).__init__()
+    self.hidden_dim = hidden_dim
+    self.seq_length = seq_length
+    
+    self.weight = Parameter(torch.Tensor(hidden_dim), requires_grad=True)
+    self.bias   = Parameter(torch.Tensor(hidden_dim), requires_grad=True)
+    self.pos_embeds  = nn.Parameter(torch.zeros(1, self.seq_length, self.hidden_dim))
+    self.cls    = None
+    if use_cls:
+        self.cls = nn.Parameter(torch.zeros(1, 1, self.hidden_dim))
+
+    self.reset_parameters()
+
+  def reset_parameters(self):
+    nn.init.normal_(self.weight, mean=0.0, std=1.0)
+    nn.init.normal_(self.bias, mean=0.0, std=0.1)
+    if self.use_cls is not None:
+        nn.init.normal_(self.cls, mean=0.0, std=1.0)
+
+  def forward(self, x, mask):
+    batch_size, seq_len = x.shape
+    embed = x.unsqueeze(-1) * self.weight + self.bias
+    embed = embed + self.pos_embeds
+    if self.cls is not None:
+        embed = torch.cat([ self.cls.expand(batch_size, 1, -1), embed ], axis=1)
+        
+    return embed, mask
 
 #Ordinary Transformer layers
 class TEmbedding(nn.Module):
@@ -348,6 +378,14 @@ class DualClassifier(nn.Module):
     logits = self.output(x)
 
     return logits
+    
+class ImageClassifier(TClassifier):
+    def __init__(self, classes, hidden_dim, inter_dim, affine, use_cls):
+        super(ImageClassifier, self).__init__(classes, hidden_dim, inter_dim, affine, use_cls)
+        self.ffn = nn.Sequential(
+            nn.Linear(hidden_dim, inter_dim, bias=affine), nn.GELU(),
+            nn.Linear(inter_dim, inter_dim, bias=affine), nn.GELU(),
+        )
 
 class LunaBlock(TBlock):
   def __init__(self, hidden_dim, qkv_dim, mlp_dim, num_heads, dropout_rate, affine, logging_frequency=1000, norm_type='layernorm', shared_att='full'):

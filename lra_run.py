@@ -33,7 +33,8 @@ def get_lra_data(lib_path, data_path, task, batch_size, max_length):
         'classification' : lambda batch_size, max_length: get_tc_datasets(1, 'imdb_reviews', batch_size=batch_size, max_length=max_length),
         'matching'       : lambda batch_size, max_length: get_matching_datasets(1, None, tokenizer='char', data_dir=MATCHING_DATADIR, batch_size=batch_size, max_length=max_length),
         'listops'        : lambda batch_size, max_length: get_listops_datasets(1, 'basic', data_dir=LISTOPS_DATADIR, batch_size=batch_size, max_length=max_length),
-        'cifar'          : lambda batch_size, max_length: get_cifar10_datasets(1, batch_size, True)
+        'cifar'          : lambda batch_size, max_length: get_cifar10_datasets(1, batch_size, normalize=False)
+        'pathfinder'     : lambda batch_size, max_length: get_pathfinder_base_datasets(1, batch_size, resolution=32, split='hard', normalize=False)
     }
     
     return DATASETS_BY_TASK[task.lower()](batch_size, max_length)
@@ -43,6 +44,8 @@ def get_setup(task):
         'classification' : CLS_SETUP,
         'matching' : MATCHING_SETUP,
         'listops' : LISTOPS_SETUP,
+        'cifar' : CIFAR_SETUP,
+        'pathfinder' : PATH_SETUP,
     }
     
     setup = REGISTERED_SETUPS[task]
@@ -51,27 +54,27 @@ def get_setup(task):
 def get_model(args, encoder, setup, max_length):
     BASE_MODELS = { 'classification' : ClassificationTransformer, 'matching' : MatchingTransformer }
     LUNA_MODELS = { 'classification' : LunaClassifier,            'matching' : LunaMatcher }
-    BLUNA_MODELS = { 'classification' : BLunaClassifier, }
-    VMFLUNA_MODELS ={ 'classification' : vMFLunaClassifier, }
-    CONVLUNA_MODELS = { 'classification' : SimplifiedConvLunaClassifier, 'matching' : SimplifiedConvLunaMatcher }
+    CONVLUNA_MODELS = { 'classification' : SimplifiedConvLunaClassifier, 'matching' : SimplifiedConvLunaMatcher, 'image' : SimplifiedConvLunaImage }
     
     REGISTERED_MODELS = {
         'base' : BASE_MODELS,
         'luna' : LUNA_MODELS,
-        'bluna' : BLUNA_MODELS,
-        'vmfluna' : VMFLUNA_MODELS,
         'convluna' : CONVLUNA_MODELS,
     }
     
     ADDITIONAL_MODEL_ARGS = {
         'luna'      : ['mem_size'],
-        'bluna'     : ['mem_size', 'weibull_k', 'gamma_beta', 'prior_hidden_size', 'anneal_k', 'anneal_b', 'eps'],
         'convluna'  : ['mem_size', 'kernel', 'stride', 'pool', 'temperature_pack', 'temperature_unpack', 'use_mem_repr'],
-        'vmfluna'   : ['mem_size', 'kernel', 'stride', 'pool', 'vmf_k', 'anneal_k', 'anneal_b', 'eps' ],
-        
     }
     
-    task = 'classification' if args.task in { 'classification', 'listops' } else 'matching'
+    task = None
+    if args.task in { 'classification', 'listops' }:
+        task = 'classification'
+    elif task in { 'pathfinder', 'cifar' }:
+        task = 'image'
+    else:
+        task = 'matching'
+        
     model_class = REGISTERED_MODELS[args.model][task]
     additional_args = ADDITIONAL_MODEL_ARGS[args.model]
     additional_args = { arg : vars(args).get(arg) for arg in additional_args }
