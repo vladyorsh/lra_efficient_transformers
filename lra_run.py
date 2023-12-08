@@ -70,7 +70,7 @@ def get_model(args, encoder, setup, max_length):
     task = None
     if args.task in { 'classification', 'listops' }:
         task = 'classification'
-    elif task in { 'pathfinder', 'cifar' }:
+    elif args.task in { 'pathfinder', 'cifar' }:
         task = 'image'
     else:
         task = 'matching'
