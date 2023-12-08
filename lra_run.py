@@ -33,8 +33,8 @@ def get_lra_data(lib_path, data_path, task, batch_size, max_length):
         'classification' : lambda batch_size, max_length: get_tc_datasets(1, 'imdb_reviews', batch_size=batch_size, max_length=max_length),
         'matching'       : lambda batch_size, max_length: get_matching_datasets(1, None, tokenizer='char', data_dir=MATCHING_DATADIR, batch_size=batch_size, max_length=max_length),
         'listops'        : lambda batch_size, max_length: get_listops_datasets(1, 'basic', data_dir=LISTOPS_DATADIR, batch_size=batch_size, max_length=max_length),
-        'cifar'          : lambda batch_size, max_length: get_cifar10_datasets(1, batch_size, normalize=False),
-        'pathfinder'     : lambda batch_size, max_length: get_pathfinder_base_datasets(1, batch_size, resolution=32, split='hard', normalize=False)
+        'cifar'          : lambda batch_size, max_length: get_cifar10_datasets(1, batch_size, normalize=False)[:3] + (None,),
+        'pathfinder'     : lambda batch_size, max_length: get_pathfinder_base_datasets(1, batch_size, resolution=32, split='hard', normalize=False[:3]) + (None,)
     }
     
     return DATASETS_BY_TASK[task.lower()](batch_size, max_length)
