@@ -326,7 +326,10 @@ class LraLightningWrapper(pl.LightningModule):
     def unpack_batch(self, batch):
         batch_size=None
         if 'inputs' in batch.keys():
-            inp = torch.from_numpy(batch['inputs']).to(self.device)
+            if self.normalization is None:
+                inp = torch.from_numpy(batch['inputs']).to(self.device)
+            else:
+                inp = torch.from_numpy(batch['inputs'].numpy()).to(self.device)
             batch_size = inp.shape[0]
             mask = (inp != 0).float()
         else:
