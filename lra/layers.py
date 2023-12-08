@@ -38,7 +38,7 @@ class ScaleNorm(nn.Module):
         
 class IEmbedding(nn.Module):
   def __init__(self, hidden_dim, seq_length, use_cls):
-    super(IEmbedding).__init__()
+    super(IEmbedding, self).__init__()
     self.hidden_dim = hidden_dim
     self.seq_length = seq_length
     
