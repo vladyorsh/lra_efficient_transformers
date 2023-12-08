@@ -336,7 +336,11 @@ class LraLightningWrapper(pl.LightningModule):
             inp = (torch.from_numpy(batch['inputs1']).to(self.device), torch.from_numpy(batch['inputs2']).to(self.device))
             batch_size = inp[0].shape[0]
             mask = ((inp[0] != 0).float(), (inp[1] != 0).float())
-        target = torch.from_numpy(batch['targets']).long().to(self.device)
+            
+        if self.normalization is None:
+            target = torch.from_numpy(batch['targets']).long().to(self.device)
+        else:
+            target = torch.from_numpy(batch['targets'].numpy()).long().to(self.device)
         if not self.mask_inputs:
             mask = None
         if self.normalization:
