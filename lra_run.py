@@ -81,7 +81,7 @@ def get_model(args, encoder, setup, max_length):
     model = LraLightningWrapper(
         model_class(
             classes=setup['classes'],
-            num_embeddings=encoder.vocab_size,
+            num_embeddings=encoder.vocab_size if encoder is not None else 1,
             seq_len=max_length,
             hidden_dim=setup['hidden_dim'],
             qkv_dim=setup['qkv_dim'],
@@ -104,6 +104,7 @@ def get_model(args, encoder, setup, max_length):
         log_non_scalars=args.log_non_scalars,
         log_params=args.log_params,
         mask_inputs=args.mask_inputs,
+        normalization=setup.get('normalization', None)
     )
     
     return model
@@ -155,7 +156,8 @@ def main(args):
     print(f'Sampling {sampled_batch_size} samples according to the strategy, and applying {accumulation_steps} grad accumulation steps.')
     
     train_dataset, valid_dataset, test_dataset, encoder = get_lra_data(args.lib_path, args.data_path, args.task, args.batch_size, max_length)
-    train_dataset, valid_dataset, test_dataset = wrap_lra_tf_dataset(train_dataset, num_workers=args.data_workers), wrap_lra_tf_dataset(valid_dataset, num_workers=args.data_workers), wrap_lra_tf_dataset(test_dataset, num_workers=args.data_workers)
+    if args.task not in { 'classification', 'listops' }:
+        train_dataset, valid_dataset, test_dataset = wrap_lra_tf_dataset(train_dataset, num_workers=args.data_workers), wrap_lra_tf_dataset(valid_dataset, num_workers=args.data_workers), wrap_lra_tf_dataset(test_dataset, num_workers=args.data_workers)
     
     torch.set_float32_matmul_precision(args.matmul_precision)
     model = get_model(args, encoder, setup, max_length)

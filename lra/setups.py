@@ -94,6 +94,8 @@ CIFAR_SETUP = {
     'internal_dropout_rate' : 0.0,
     'output_dropout_rate' : 0.0,
     
+    'normalization' : (0.48, 0.24),
+    
     'early_stop_patience' : 50,
     'fail_stop_warmup' : 10,
 }
@@ -118,6 +120,8 @@ PATH_SETUP = {
     'output_units' : 512,
     'internal_dropout_rate' : 0.0,
     'output_dropout_rate' : 0.0,
+    
+    'normalization' : (0.5, 0.5),
     
     'early_stop_patience' : 50,
     'fail_stop_warmup' : 10,

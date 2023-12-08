@@ -199,7 +199,7 @@ class SimplifiedConvLunaImage(SimplifiedConvLunaClassifier):
     return x, losses, artifacts
     
 class LraLightningWrapper(pl.LightningModule):
-    def __init__(self, model, reg_weight=1.0, betas=(0.9, 0.98), base_lr=0.05, wd=0.1, schedule=lambda x: 1.0, log_non_scalars=True, log_params=True, mask_inputs=False):
+    def __init__(self, model, reg_weight=1.0, betas=(0.9, 0.98), base_lr=0.05, wd=0.1, schedule=lambda x: 1.0, log_non_scalars=True, log_params=True, mask_inputs=False, normalization=None):
         super().__init__()
         #self.automatic_optimization = False
         self.model = model
@@ -213,6 +213,7 @@ class LraLightningWrapper(pl.LightningModule):
         self.log_non_scalars = log_non_scalars
         self.log_params = log_params
         self.mask_inputs = mask_inputs
+        self.normalization = normalization
         
         #nn.ModuleDict is needed for correct handling of multi-device training
         self.train_metrics = nn.ModuleDict({
@@ -335,6 +336,10 @@ class LraLightningWrapper(pl.LightningModule):
         target = torch.from_numpy(batch['targets']).long().to(self.device)
         if not self.mask_inputs:
             mask = None
+        if self.normalization:
+            mask = None
+            inp = inp.flatten(start_dim=1)
+            inp = ((inp / 255) - self.normalization[0]) / self.normalization[1]
         return inp, target, mask, batch_size
         
     def on_after_backward(self):
