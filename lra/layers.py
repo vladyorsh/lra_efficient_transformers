@@ -440,14 +440,15 @@ class ConvAttention(TAttention):
     else:
         self.kernel = nn.MaxPool2d(kernel, stride, padding=0)
         
+    if kernel[0] == 1:
+        self.kernel = nn.Identity()
+        
     if temperature == 'unit':
-        self.log_temp = nn.Parameter(torch.zeros(1,), requires_grad=False)
+        self.log_temp = nn.Parameter(torch.zeros(0,), requires_grad=False)
     elif temperature == 'sqrt':
-        self.log_temp = nn.Parameter(torch.ones(1,) * np.log(self.head_dim), requires_grad=False)
+        self.log_temp = nn.Parameter(torch.ones(0.5,) * np.log(self.head_dim), requires_grad=False)
     elif temperature == 'learn':
-        self.log_temp = nn.Parameter(torch.zeros(1,), requires_grad=True)
-    else:
-        raise ValueError(f'Temperature option {temperature} is not supported for unpack attention')
+        self.log_temp = nn.Parameter(torch.zeros(0,), requires_grad=True)
 
   def forward(self, q, k=None, v=None, q_mask=None, k_mask=None, losses=[]):
     if k is None:
