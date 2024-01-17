@@ -53,7 +53,7 @@ def get_setup(task):
         
 def get_model(args, encoder, setup, max_length):
     BASE_MODELS = { 'classification' : ClassificationTransformer, 'matching' : MatchingTransformer }
-    LUNA_MODELS = { 'classification' : LunaClassifier,            'matching' : LunaMatcher }
+    LUNA_MODELS = { 'classification' : LunaClassifier,            'matching' : LunaMatcher, 'image' : LunaImage }
     CONVLUNA_MODELS = { 'classification' : SimplifiedConvLunaClassifier, 'matching' : SimplifiedConvLunaMatcher, 'image' : SimplifiedConvLunaImage }
     
     REGISTERED_MODELS = {
