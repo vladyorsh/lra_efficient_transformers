@@ -191,7 +191,7 @@ class LunaImage(LunaClassifier):
     x, mask= self.embed_layer(inputs, mask)
     x, mem = self.encoder((x, mem), mask, losses, artifacts)
     
-    cls = (x, mask) if not self.use_mem_repr else (mem, None)
+    cls = (x, mask)
     x      = self.classifier(* cls)
 
     return x, losses, artifacts
