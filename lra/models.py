@@ -175,6 +175,26 @@ class SimplifiedConvLunaMatcher(SimplifiedConvLunaClassifier):
     artifacts = list(zip(artifacts_1, artifacts_2))
 
     return x, additional_losses, artifacts
+    
+class LunaImage(LunaClassifier):
+  def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000, norm_type='layernorm', mem_size=256, shared_att='full'):
+    super(LunaImage, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, use_cls, logging_frequency, norm_type, mem_size, shared_att)
+    
+    self.embed_layer = IEmbedding(hidden_dim, seq_len, use_cls)
+    self.classifier  = IClassifier(classes, hidden_dim, mlp_dim, output_dropout_rate, affine, use_cls, norm_type)
+    
+  def forward(self, inputs, mask):
+    mem = self.mem
+    losses = []
+    artifacts = []
+    
+    x, mask= self.embed_layer(inputs, mask)
+    x, mem = self.encoder((x, mem), mask, losses, artifacts)
+    
+    cls = (x, mask) if not self.use_mem_repr else (mem, None)
+    x      = self.classifier(* cls)
+
+    return x, losses, artifacts
    
 class SimplifiedConvLunaImage(SimplifiedConvLunaClassifier):
   def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000, norm_type='layernorm', mem_size=256, kernel=(4, 1), stride=(1, 1), pool=False, temperature_pack='unit', temperature_unpack='unit', use_mem_repr=False):
