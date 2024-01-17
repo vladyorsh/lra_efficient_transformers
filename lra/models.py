@@ -178,7 +178,7 @@ class SimplifiedConvLunaMatcher(SimplifiedConvLunaClassifier):
     
 class LunaImage(LunaClassifier):
   def __init__(self, classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate=0.1, output_dropout_rate=0.0, affine=True, use_cls=True, logging_frequency=1000, norm_type='layernorm', mem_size=256, shared_att='full'):
-    super(LunaImage, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, use_cls, logging_frequency, norm_type, mem_size, shared_att)
+    super(LunaImage, self).__init__(classes, num_embeddings, seq_len, hidden_dim, qkv_dim, mlp_dim, num_heads, num_blocks, internal_dropout_rate, output_dropout_rate, affine, use_cls, logging_frequency, norm_type, mem_size, shared_att)
     
     self.embed_layer = IEmbedding(hidden_dim, seq_len, use_cls)
     self.classifier  = IClassifier(classes, hidden_dim, mlp_dim, output_dropout_rate, affine, use_cls, norm_type)
