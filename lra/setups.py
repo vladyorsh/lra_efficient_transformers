@@ -31,7 +31,7 @@ LISTOPS_SETUP = {
     'lr' : 0.005, #Original 0.005
     'weight_decay' : 0.002, #Original 0.1
     'schedule' : lambda: get_sqrt_schedule(warmup_steps=1000),
-    'steps' : 30000,
+    'steps' : 50000,
     'eval_period' : 200, #Original 50
     
     'classes' : 10,
